@@ -4,7 +4,9 @@
     "description": "A business card website with various request handling methods",
     "main": "server.js",
     "scripts": {
-      "start": "node server.js"
+      "start": "node server.js",
+      "build": "mkdir -p build && cp -r public views server.js build/",
+      "postinstall": "npm run build"
     },
     "dependencies": {
       "express": "^4.18.2",

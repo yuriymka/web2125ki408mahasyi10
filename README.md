@@ -12,7 +12,7 @@ A simple business card website demonstrating various HTTP request handling metho
 
 ## Prerequisites
 
-- Node.js (v12 or higher)
+- Node.js (v14 or higher)
 - npm (Node Package Manager)
 
 ## Installation
@@ -36,38 +36,23 @@ npm start
 
 2. Open your browser and navigate to `http://localhost:3000`
 
-## Deployment Instructions
+## Deployment on Render.com
 
-### Deploying to Heroku
+1. Create an account on [Render.com](https://render.com)
 
-1. Create a Heroku account if you don't have one
-2. Install Heroku CLI
-3. Login to Heroku:
-```bash
-heroku login
-```
+2. From your Render dashboard:
+   - Click "New +" button
+   - Select "Web Service"
+   - Connect your GitHub repository
+   - Configure the deployment:
+     - Name: business-card-website
+     - Environment: Node
+     - Build Command: `npm install && npm run build`
+     - Start Command: `cd build && node server.js`
+     - Select the free plan
+   - Click "Create Web Service"
 
-4. Create a new Heroku app:
-```bash
-heroku create your-app-name
-```
-
-5. Deploy your application:
-```bash
-git push heroku main
-```
-
-### Deploying to Other Platforms
-
-The application can be deployed to any platform that supports Node.js applications. Make sure to:
-
-1. Set the `PORT` environment variable if required by your hosting platform
-2. Install dependencies using `npm install`
-3. Start the application using `npm start`
-
-## Live Demo
-
-[Link to deployed site will be added after deployment]
+3. Your site will be automatically deployed and available at the provided Render URL
 
 ## Project Structure
 
