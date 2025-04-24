@@ -339,6 +339,18 @@ app.post('/api/verify-2fa', async (req, res) => {
     }
 });
 
+// Add PHP session handling middleware
+app.use((req, res, next) => {
+    if (req.url.endsWith('.php')) {
+        const phpSession = req.cookies['PHPSESSID'];
+        if (phpSession) {
+            req.session = req.session || {};
+            req.session.phpSession = phpSession;
+        }
+    }
+    next();
+});
+
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
