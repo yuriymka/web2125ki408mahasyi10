@@ -23,6 +23,7 @@ db.serialize(() => {
         username TEXT UNIQUE,
         password TEXT,
         secret TEXT,
+        viber_id TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 });
@@ -72,6 +73,27 @@ const dbOperations = {
                         console.log('Secret updated for user:', username);
                         resolve(this.changes);
                     }
+                });
+        });
+    },
+
+    updateViberId: (username, viberId) => {
+        return new Promise((resolve, reject) => {
+            db.run('UPDATE users SET viber_id = ? WHERE username = ?',
+                [viberId, username],
+                function(err) {
+                    if (err) reject(err);
+                    else resolve(this.changes);
+                });
+        });
+    },
+
+    getUserByViberId: (viberId) => {
+        return new Promise((resolve, reject) => {
+            db.get('SELECT * FROM users WHERE viber_id = ?', [viberId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
                 });
         });
     }

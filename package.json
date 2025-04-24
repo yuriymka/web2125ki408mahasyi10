@@ -5,7 +5,7 @@
     "main": "server.js",
     "scripts": {
       "start": "node server.js",
-      "build": "mkdir -p build/data && cp -r public views server.js db.js package.json build/",
+      "build": "mkdir -p build && cp -r public views server.js db.js viber.js package.json build/",
       "postinstall": "npm run build"
     },
     "dependencies": {
@@ -16,7 +16,10 @@
       "connect-sqlite3": "^0.9.13",
       "speakeasy": "^2.0.0",
       "qrcode": "^1.5.3",
-      "sqlite3": "^5.1.6"
+      "sqlite3": "^5.1.6",
+      "viber-bot": "^1.0.18",
+      "node-fetch": "^2.6.9",
+      "uuid": "^8.3.2"
     },
     "engines": {
       "node": ">=14.0.0"

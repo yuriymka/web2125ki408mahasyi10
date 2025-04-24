@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viber Setup - Business Card</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h2>Connect Your Viber Account</h2>
+            <div id="errorMessage" class="error"></div>
+            
+            <div class="setup-steps">
+                <h3>Step 1: Add our Viber Bot</h3>
+                <p>Scan this QR code with your Viber app:</p>
+                <div id="botQR"></div>
+                <p>Or click this link on your phone:</p>
+                <a href="#" id="botLink" target="_blank">Open in Viber</a>
+
+                <h3>Step 2: Enter Your Viber ID</h3>
+                <p>After adding the bot, you'll receive your Viber ID. Enter it below:</p>
+                <form id="viberForm">
+                    <div class="form-group">
+                        <input type="text" name="viberId" placeholder="Enter Viber ID" required>
+                    </div>
+                    <button type="submit">Connect Viber</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const viberForm = document.getElementById('viberForm');
+        const errorMessage = document.getElementById('errorMessage');
+
+        viberForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/connect-viber', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        viberId: e.target.elements.viberId.value
+                    }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    errorMessage.textContent = data.error || 'Failed to connect Viber';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'An error occurred. Please try again.';
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html> 

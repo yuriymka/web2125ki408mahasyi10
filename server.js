@@ -9,6 +9,7 @@ const QRCode = require('qrcode');
 const db = require('./db');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const { bot, generateVerificationCode, sendVerificationCode, storeVerificationCode, verifyCode } = require('./viber');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -140,68 +141,45 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
     try {
-        console.log('Login attempt:', req.body);
-        const { username, password, token } = req.body;
-        
+        const { username, password, viberCode } = req.body;
         const user = await db.getUser(username);
-        console.log('User found:', user ? 'yes' : 'no');
 
-        if (!user) {
+        if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // Check 2FA if enabled
-        if (user.secret) {
-            if (!token) {
-                return res.json({ 
-                    requires2FA: true,
-                    message: 'Please enter 2FA token' 
-                });
+        // If user has Viber ID set up
+        if (user.viber_id) {
+            if (!viberCode) {
+                // Generate and send verification code
+                const code = generateVerificationCode();
+                const sent = await sendVerificationCode(user.viber_id, code);
+                
+                if (sent) {
+                    storeVerificationCode(user.viber_id, code);
+                    return res.json({
+                        requiresViber: true,
+                        message: 'Please enter the verification code sent to your Viber'
+                    });
+                } else {
+                    return res.status(500).json({ error: 'Failed to send Viber verification' });
+                }
             }
 
-            const verified = speakeasy.totp.verify({
-                secret: user.secret,
-                encoding: 'base32',
-                token: token,
-                window: 2
-            });
-
-            if (!verified) {
-                return res.status(401).json({ error: 'Invalid 2FA token' });
+            // Verify the code
+            if (!verifyCode(user.viber_id, viberCode)) {
+                return res.status(401).json({ error: 'Invalid verification code' });
             }
         }
 
-        // Set session data
+        // Continue with regular session setup
         req.session.user = {
             id: user.id,
             username: user.username,
-            authenticated: true,
-            lastLogin: new Date().toISOString()
+            authenticated: true
         };
 
-        // Force session save and wait for it to complete
-        await new Promise((resolve, reject) => {
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    reject(err);
-                } else {
-                    console.log('Session saved successfully:', req.session);
-                    resolve();
-                }
-            });
-        });
-
-        res.json({ 
-            success: true,
-            redirect: '/'
-        });
-
+        res.json({ success: true });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
@@ -398,6 +376,26 @@ app.use((req, res, next) => {
         }
     }
     next();
+});
+
+// Add Viber webhook
+app.post('/viber/webhook', bot.middleware());
+
+// Add Viber connection endpoint
+app.post('/api/connect-viber', async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({ error: 'Not authenticated' });
+        }
+
+        const { viberId } = req.body;
+        await db.updateViberId(req.session.user.username, viberId);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Viber connection error:', error);
+        res.status(500).json({ error: 'Failed to connect Viber' });
+    }
 });
 
 // Start server

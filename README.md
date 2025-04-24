@@ -12,12 +12,15 @@ A business card website with secure authentication including password hashing an
 - Business card information display
 - GET and POST request demonstrations
 - AJAX form handling
+- Viber verification for secure login
 
 ## Prerequisites
 
 - Node.js (v14 or higher)
 - npm (Node Package Manager)
 - Google Authenticator app (for 2FA)
+- Viber account
+- Viber Public Account/Bot Token
 
 ## Installation
 
@@ -29,6 +32,12 @@ git clone <repository-url>
 2. Install dependencies:
 ```bash
 npm install
+```
+
+3. Set environment variables:
+```bash
+export VIBER_AUTH_TOKEN=<your-viber-bot-token>
+export SESSION_SECRET=<generate-a-random-string>
 ```
 
 ## Running Locally
@@ -64,6 +73,7 @@ npm start
 
 3. Add the following environment variables in Render:
    - SESSION_SECRET: [generate a random string]
+   - VIBER_AUTH_TOKEN: [from Viber bot setup]
 
 ## Security Features
 
@@ -72,6 +82,7 @@ npm start
 - Secure session management
 - Protected routes requiring authentication
 - HTTPS enforcement in production
+- Viber verification codes
 
 ## Project Structure
 
@@ -84,4 +95,13 @@ project/
 ├── package.json # Project configuration
 └── README.md # Documentation
 ```
+
+## Viber Bot Setup
+1. Create a Viber Public Account at [Viber Partners](https://partners.viber.com)
+2. Create a new bot and get the authentication token
+3. Set up webhook URL: `https://your-domain.com/viber/webhook`
+4. Add the authentication token to your environment variables
+
+## Live Demo
+[Your deployed site URL]
 

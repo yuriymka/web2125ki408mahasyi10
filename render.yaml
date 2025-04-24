@@ -13,6 +13,8 @@ services:
         value: production
       - key: SESSION_SECRET
         generateValue: true
+      - key: VIBER_AUTH_TOKEN
+        sync: false
     headers:
       - path: /*
         name: Access-Control-Allow-Credentials
