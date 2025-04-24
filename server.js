@@ -10,7 +10,7 @@ const db = require('./db');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const { bot, generateVerificationCode, sendVerificationCode, storeVerificationCode, verifyCode } = require('./viber');
-const viberService = require('./services/viber-service');
+const viberService = require('./viber-service');
 
 const app = express();
 const port = process.env.PORT || 3000;
