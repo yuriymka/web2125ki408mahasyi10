@@ -10,13 +10,85 @@
     <div class="container">
         <div class="card">
             <h2>Setup Two-Factor Authentication</h2>
-            <div id="qrcode"></div>
-            <p>Scan the QR code with Google Authenticator app</p>
-            <p>Or enter this code manually: <strong id="secret"></strong></p>
-            <button onclick="window.location.href='/'">Continue to Homepage</button>
+            
+            <div class="setup-steps">
+                <h3>Step 1: Install Google Authenticator</h3>
+                <p>Download Google Authenticator from your app store:</p>
+                <ul>
+                    <li><a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android - Google Play Store</a></li>
+                    <li><a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iPhone - App Store</a></li>
+                </ul>
+
+                <h3>Step 2: Scan QR Code</h3>
+                <div id="qrcode" class="qr-container"></div>
+                <p>Or enter this code manually in the app: <strong id="secret"></strong></p>
+
+                <h3>Step 3: Verify Setup</h3>
+                <form id="verifyForm">
+                    <div class="form-group">
+                        <input type="text" id="token" placeholder="Enter the 6-digit code from the app" required>
+                    </div>
+                    <button type="submit">Verify and Complete Setup</button>
+                </form>
+                <div id="verifyMessage" class="message"></div>
+            </div>
         </div>
     </div>
+
+    <style>
+        .setup-steps {
+            text-align: left;
+            padding: 20px;
+        }
+
+        .qr-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        ul li {
+            margin: 10px 0;
+        }
+
+        ul li a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        ul li a:hover {
+            text-decoration: underline;
+        }
+    </style>
+
     <script>
+        let setupSecret = '';
+
         async function setup2FA() {
             try {
                 const response = await fetch('/api/setup-2fa', {
@@ -26,10 +98,40 @@
                 
                 document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
                 document.getElementById('secret').textContent = data.secret;
+                setupSecret = data.secret;
             } catch (error) {
                 alert('Failed to setup 2FA');
             }
         }
+
+        document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = document.getElementById('token').value;
+            const messageDiv = document.getElementById('verifyMessage');
+
+            try {
+                const response = await fetch('/api/verify-2fa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token, secret: setupSecret })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = 'Setup successful! Redirecting to homepage...';
+                    setTimeout(() => window.location.href = '/', 2000);
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = data.error || 'Verification failed. Please try again.';
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'An error occurred. Please try again.';
+            }
+        });
 
         setup2FA();
     </script>

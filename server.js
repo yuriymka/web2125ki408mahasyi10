@@ -192,6 +192,37 @@ app.get('/api/session', (req, res) => {
     });
 });
 
+// Add this new route for 2FA verification
+app.post('/api/verify-2fa', async (req, res) => {
+    try {
+        const { token, secret } = req.body;
+
+        if (!token || !secret) {
+            return res.status(400).json({ error: 'Token and secret are required' });
+        }
+
+        const verified = speakeasy.totp.verify({
+            secret: secret,
+            encoding: 'base32',
+            token: token,
+            window: 2 // Allow 2 time steps before and after for clock drift
+        });
+
+        if (verified) {
+            // If the user is logged in, update their secret
+            if (req.session.user) {
+                await db.updateUserSecret(req.session.user.username, secret);
+            }
+            res.json({ success: true });
+        } else {
+            res.json({ success: false, error: 'Invalid token. Please try again.' });
+        }
+    } catch (error) {
+        console.error('2FA verification error:', error);
+        res.status(500).json({ error: 'Server error during verification' });
+    }
+});
+
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
