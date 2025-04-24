@@ -10,6 +10,23 @@ class ViberService {
         });
 
         this.verificationCodes = new Map();
+
+        // Set up bot event handlers
+        this.bot.on(ViberBot.Events.SUBSCRIBED, response => {
+            response.send(new Message.Text(
+                `Welcome to Business Card Auth! Your Viber ID is: ${response.userProfile.id}`
+            ));
+        });
+
+        this.bot.on(ViberBot.Events.MESSAGE_RECEIVED, (message, response) => {
+            response.send(new Message.Text(
+                "I'm a verification bot. You'll receive verification codes when you try to log in."
+            ));
+        });
+    }
+
+    getBot() {
+        return this.bot;
     }
 
     generateVerificationCode() {

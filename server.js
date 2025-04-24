@@ -367,8 +367,17 @@ app.use((req, res, next) => {
     next();
 });
 
-// Add Viber webhook
-app.post('/viber/webhook', bot.middleware());
+// Viber webhook
+app.post('/viber/webhook', viberService.getBot().middleware());
+
+// Set webhook URL for Viber bot
+const webhookUrl = process.env.NODE_ENV === 'production' 
+    ? `https://${process.env.RENDER_EXTERNAL_URL}/viber/webhook`
+    : `http://localhost:${port}/viber/webhook`;
+
+viberService.getBot().setWebhook(webhookUrl).catch(error => {
+    console.error('Failed to set webhook:', error);
+});
 
 // Add Viber connection endpoint
 app.post('/api/connect-viber', async (req, res) => {
@@ -447,4 +456,5 @@ app.post('/api/verify-phone', async (req, res) => {
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
+    console.log(`Webhook URL: ${webhookUrl}`);
 });
