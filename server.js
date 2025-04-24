@@ -22,22 +22,34 @@ if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// Configure session before other middleware
-app.use(session({
-    store: new SQLiteStore({
-        dir: dataDir,
-        db: 'sessions.db',
-        table: 'sessions'
-    }),
+// Place this before any routes
+const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: true,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to false for now (we'll handle this better later)
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
-}));
+};
+
+// If in production, update cookie settings
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1); // trust first proxy
+    sessionConfig.cookie.secure = true; // serve secure cookies
+    sessionConfig.cookie.sameSite = 'none'; // allow cross-site cookie
+}
+
+// Initialize session with the config
+app.use(session(sessionConfig));
+
+// Add this middleware to log session data on every request
+app.use((req, res, next) => {
+    console.log('Request URL:', req.url);
+    console.log('Session Data:', req.session);
+    next();
+});
 
 // Middleware
 app.use(express.static(path.join(__dirname, 'public')));
@@ -53,11 +65,14 @@ app.use((req, res, next) => {
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
-    console.log('Auth check - Session:', req.session);
-    if (!req.session.user || !req.session.user.authenticated) {
+    console.log('Auth check - Full session:', req.session);
+    
+    if (!req.session || !req.session.user || !req.session.user.authenticated) {
         console.log('Not authenticated, redirecting to login');
         return res.redirect('/login');
     }
+    
+    console.log('Authentication successful for user:', req.session.user.username);
     next();
 };
 
@@ -169,17 +184,22 @@ app.post('/api/login', async (req, res) => {
             lastLogin: new Date().toISOString()
         };
 
-        // Save session explicitly
-        req.session.save((err) => {
-            if (err) {
-                console.error('Session save error:', err);
-                return res.status(500).json({ error: 'Session error' });
-            }
-            console.log('Session saved successfully:', req.session);
-            res.json({ 
-                success: true,
-                redirect: '/'
+        // Force session save and wait for it to complete
+        await new Promise((resolve, reject) => {
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    reject(err);
+                } else {
+                    console.log('Session saved successfully:', req.session);
+                    resolve();
+                }
             });
+        });
+
+        res.json({ 
+            success: true,
+            redirect: '/'
         });
 
     } catch (error) {

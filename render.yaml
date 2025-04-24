@@ -1,11 +1,12 @@
 services:
   - type: web
     name: business-card-website
-    env: docker
-    dockerfilePath: ./Dockerfile
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: cd build && NODE_ENV=production node server.js
     disk:
       name: data
-      mountPath: /app/data
+      mountPath: /opt/render/project/src/data
       sizeGB: 1
     envVars:
       - key: NODE_ENV
@@ -14,5 +15,8 @@ services:
         generateValue: true
     headers:
       - path: /*
-        name: Cache-Control
-        value: no-store 
+        name: Access-Control-Allow-Credentials
+        value: "true"
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*" 
