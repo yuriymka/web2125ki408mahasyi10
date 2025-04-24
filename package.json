@@ -1,0 +1,16 @@
+{
+    "name": "business-card-website",
+    "version": "1.0.0",
+    "description": "A business card website with various request handling methods",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "express": "^4.18.2",
+      "body-parser": "^1.20.2"
+    },
+    "engines": {
+      "node": ">=14.0.0"
+    }
+  }

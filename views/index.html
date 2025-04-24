@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Card - Home</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/">Home</a>
+            <a href="/get-page">GET Page</a>
+            <a href="/post-page">POST Page</a>
+            <a href="/ajax-forms">AJAX Forms</a>
+        </nav>
+        
+        <div class="card">
+            <h1>Mahas Yurii</h1>
+            <h2>Computer Engineer</h2>
+            <p>Email: yurii.mahas.ki.2021@mpnu.ua</p>
+            <p>Phone: 0098273547</p>
+            <p>Location: Lviv</p>
+            <div class="timestamp">Page loaded at: <span id="loadTime"></span></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loadTime').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>

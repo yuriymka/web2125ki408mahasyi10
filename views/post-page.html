@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Card - POST Page</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/">Home</a>
+            <a href="/get-page">GET Page</a>
+            <a href="/post-page">POST Page</a>
+            <a href="/ajax-forms">AJAX Forms</a>
+        </nav>
+        
+        <div class="card">
+            <h2>POST Request Demo</h2>
+            <form action="/api/data" method="post">
+                <input type="text" name="name" placeholder="Enter your name">
+                <button type="submit">Submit POST Request</button>
+            </form>
+            <div class="timestamp">Page loaded at: <span id="loadTime"></span></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loadTime').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>
