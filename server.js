@@ -90,18 +90,18 @@ app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         
-        // Generate 2FA secret during registration
+        // Generate 2FA secret
         const secret = speakeasy.generateSecret({
             name: `BusinessCard:${username}`
         });
 
-        const userId = await db.createUser(username, password, secret.base32);
+        // Create user without saving the secret yet
+        const userId = await db.createUser(username, password);
         
         // Store user data in session
         req.session.user = {
             username,
-            id: userId,
-            secret: secret.base32
+            id: userId
         };
 
         // Generate QR code
@@ -311,29 +311,46 @@ app.get('/api/session-check', (req, res) => {
 // Verify 2FA endpoint
 app.post('/api/verify-2fa', async (req, res) => {
     try {
-        const { token } = req.body;
-        const { user } = req.session;
-
-        if (!user || !user.secret) {
-            return res.status(400).json({ error: 'No 2FA secret found' });
+        const { token, secret } = req.body;
+        
+        if (!token || !secret) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Token and secret are required' 
+            });
         }
 
+        console.log('Verifying token:', { token, hasSecret: !!secret });
+
         const verified = speakeasy.totp.verify({
-            secret: user.secret,
+            secret: secret,
             encoding: 'base32',
             token: token,
-            window: 2
+            window: 2 // Allow 2 time steps before and after
         });
 
+        console.log('Verification result:', verified);
+
         if (verified) {
-            user.verified2FA = true;
+            // Update the user's verified status in the session
+            if (req.session.user) {
+                req.session.user.verified2FA = true;
+                // Save the verified secret in the database
+                await db.updateUserSecret(req.session.user.username, secret);
+            }
             res.json({ success: true });
         } else {
-            res.json({ success: false, error: 'Invalid token' });
+            res.json({ 
+                success: false, 
+                error: 'Invalid token. Please try again.' 
+            });
         }
     } catch (error) {
         console.error('2FA verification error:', error);
-        res.status(500).json({ error: 'Verification failed' });
+        res.status(500).json({ 
+            success: false, 
+            error: 'Verification failed' 
+        });
     }
 });
 

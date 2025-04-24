@@ -28,18 +28,16 @@ db.serialize(() => {
 });
 
 const dbOperations = {
-    createUser: async (username, password, secret) => {
-        console.log('Creating user:', username);
+    createUser: async (username, password) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         return new Promise((resolve, reject) => {
-            db.run('INSERT INTO users (username, password, secret) VALUES (?, ?, ?)',
-                [username, hashedPassword, secret],
+            db.run('INSERT INTO users (username, password) VALUES (?, ?)',
+                [username, hashedPassword],
                 function(err) {
                     if (err) {
-                        console.error('Error creating user:', err);
+                        console.error('Database error:', err);
                         reject(err);
                     } else {
-                        console.log('User created successfully:', username);
                         resolve(this.lastID);
                     }
                 });
@@ -62,20 +60,16 @@ const dbOperations = {
         });
     },
 
-    updateUserSecret: async (username, secret) => {
-        console.log('Updating user secret:', { username, hasSecret: !!secret });
+    updateUserSecret: (username, secret) => {
         return new Promise((resolve, reject) => {
             db.run('UPDATE users SET secret = ? WHERE username = ?',
                 [secret, username],
                 function(err) {
                     if (err) {
-                        console.error('Error updating user secret:', err);
+                        console.error('Error updating secret:', err);
                         reject(err);
                     } else {
-                        console.log('User secret updated successfully:', {
-                            username,
-                            changes: this.changes
-                        });
+                        console.log('Secret updated for user:', username);
                         resolve(this.changes);
                     }
                 });

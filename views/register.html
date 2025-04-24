@@ -72,6 +72,7 @@
                 <form id="verifyForm" class="verification-form">
                     <div class="form-group">
                         <input type="text" name="token" placeholder="Enter 6-digit code" pattern="[0-9]{6}" required>
+                        <input type="hidden" name="secret" id="secretInput">
                     </div>
                     <button type="submit">Verify and Complete Setup</button>
                 </form>
@@ -86,6 +87,7 @@
         const setup2FA = document.getElementById('setup2FA');
         const verifyForm = document.getElementById('verifyForm');
         const errorMessage = document.getElementById('errorMessage');
+        let currentSecret = ''; // Store the secret
 
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -116,9 +118,11 @@
                     setup2FA.style.display = 'block';
                     verifyForm.style.display = 'block';
                     
-                    // Display QR code and secret
+                    // Store and display QR code and secret
+                    currentSecret = data.secret;
                     document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
                     document.getElementById('secret').textContent = data.secret;
+                    document.getElementById('secretInput').value = data.secret;
                 } else {
                     errorMessage.textContent = data.error || 'Registration failed';
                     errorMessage.style.display = 'block';
@@ -139,7 +143,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        token: e.target.elements.token.value
+                        token: e.target.elements.token.value,
+                        secret: currentSecret // Send the secret with verification
                     })
                 });
 
