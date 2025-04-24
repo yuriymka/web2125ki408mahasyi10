@@ -6,49 +6,32 @@
     <title>Register - Business Card</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .registration-steps {
-            margin-bottom: 20px;
-        }
-        
-        .step {
-            display: none;
-        }
-        
-        .step.active {
-            display: block;
-        }
-        
         .qr-container {
             text-align: center;
             margin: 20px 0;
             padding: 20px;
             background: #f8f9fa;
             border-radius: 8px;
+            display: none;
         }
-        
         .secret-key {
             background: #e9ecef;
             padding: 10px;
             border-radius: 4px;
             font-family: monospace;
             margin: 10px 0;
+            word-break: break-all;
         }
-        
+        .verification-form {
+            display: none;
+        }
         .error {
-            background-color: #ffebee;
-            color: #c62828;
+            color: #dc3545;
+            background-color: #f8d7da;
             padding: 10px;
             border-radius: 4px;
             margin-bottom: 15px;
             display: none;
-        }
-        
-        .success {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
         }
     </style>
 </head>
@@ -58,46 +41,40 @@
             <h2>Register</h2>
             <div id="errorMessage" class="error"></div>
             
-            <div class="registration-steps">
-                <!-- Step 1: Account Details -->
-                <div id="step1" class="step active">
-                    <h3>Step 1: Create Account</h3>
-                    <form id="registerForm">
-                        <div class="form-group">
-                            <input type="text" name="username" placeholder="Username" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="password" name="password" placeholder="Password" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="password" name="confirmPassword" placeholder="Confirm Password" required>
-                        </div>
-                        <button type="submit">Continue to 2FA Setup</button>
-                    </form>
+            <!-- Registration Form -->
+            <form id="registerForm">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required>
                 </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Password" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="confirmPassword" placeholder="Confirm Password" required>
+                </div>
+                <button type="submit">Register</button>
+            </form>
 
-                <!-- Step 2: 2FA Setup -->
-                <div id="step2" class="step">
-                    <h3>Step 2: Set Up Google Authenticator</h3>
-                    <div class="setup-instructions">
-                        <p>1. Install Google Authenticator on your phone:</p>
-                        <ul>
-                            <li><a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android - Google Play Store</a></li>
-                            <li><a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iPhone - App Store</a></li>
-                        </ul>
-                        <p>2. Scan this QR code with the app:</p>
-                        <div id="qrcode" class="qr-container"></div>
-                        <p>Or enter this code manually in the app:</p>
-                        <div id="secret" class="secret-key"></div>
-                        <p>3. Enter the 6-digit code from the app:</p>
-                        <form id="verifyForm">
-                            <div class="form-group">
-                                <input type="text" name="token" placeholder="Enter 6-digit code" required pattern="[0-9]{6}">
-                            </div>
-                            <button type="submit">Complete Registration</button>
-                        </form>
+            <!-- 2FA Setup Section -->
+            <div id="setup2FA" class="qr-container">
+                <h3>Set Up Two-Factor Authentication</h3>
+                <p>1. Install Google Authenticator on your phone</p>
+                <ul>
+                    <li><a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android - Google Play Store</a></li>
+                    <li><a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iPhone - App Store</a></li>
+                </ul>
+                <p>2. Scan this QR code:</p>
+                <div id="qrcode"></div>
+                <p>Or enter this code manually:</p>
+                <div id="secret" class="secret-key"></div>
+                
+                <!-- Verification Form -->
+                <form id="verifyForm" class="verification-form">
+                    <div class="form-group">
+                        <input type="text" name="token" placeholder="Enter 6-digit code" pattern="[0-9]{6}" required>
                     </div>
-                </div>
+                    <button type="submit">Verify and Complete Setup</button>
+                </form>
             </div>
 
             <p>Already have an account? <a href="/login">Login</a></p>
@@ -105,28 +82,21 @@
     </div>
 
     <script>
-        let setupSecret = '';
         const registerForm = document.getElementById('registerForm');
+        const setup2FA = document.getElementById('setup2FA');
         const verifyForm = document.getElementById('verifyForm');
         const errorMessage = document.getElementById('errorMessage');
-        const step1 = document.getElementById('step1');
-        const step2 = document.getElementById('step2');
 
-        // Handle initial registration
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessage.style.display = 'none';
-            const formData = new FormData(e.target);
             
+            const formData = new FormData(e.target);
             if (formData.get('password') !== formData.get('confirmPassword')) {
                 errorMessage.textContent = 'Passwords do not match';
                 errorMessage.style.display = 'block';
                 return;
             }
-
-            const submitButton = e.target.querySelector('button');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Registering...';
 
             try {
                 const response = await fetch('/api/register', {
@@ -139,13 +109,16 @@
                 });
 
                 const data = await response.json();
-                console.log('Registration response:', data);
                 
                 if (data.success) {
-                    // Move to 2FA setup
-                    step1.classList.remove('active');
-                    step2.classList.add('active');
-                    await setup2FA();
+                    // Show 2FA setup
+                    registerForm.style.display = 'none';
+                    setup2FA.style.display = 'block';
+                    verifyForm.style.display = 'block';
+                    
+                    // Display QR code and secret
+                    document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
+                    document.getElementById('secret').textContent = data.secret;
                 } else {
                     errorMessage.textContent = data.error || 'Registration failed';
                     errorMessage.style.display = 'block';
@@ -154,63 +127,24 @@
                 console.error('Registration error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
-            } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Continue to 2FA Setup';
             }
         });
 
-        // Handle 2FA setup
-        async function setup2FA() {
-            try {
-                const response = await fetch('/api/setup-2fa', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('2FA setup response:', data);
-                
-                if (data.success) {
-                    document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
-                    document.getElementById('secret').textContent = data.secret;
-                    setupSecret = data.secret;
-                } else {
-                    throw new Error(data.error || 'Failed to setup 2FA');
-                }
-            } catch (error) {
-                console.error('2FA setup error:', error);
-                errorMessage.textContent = 'Failed to setup 2FA: ' + error.message;
-                errorMessage.style.display = 'block';
-            }
-        }
-
-        // Handle 2FA verification
         verifyForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessage.style.display = 'none';
-            const token = e.target.elements.token.value;
-
-            const submitButton = e.target.querySelector('button');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Verifying...';
 
             try {
                 const response = await fetch('/api/verify-2fa', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ token })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: e.target.elements.token.value
+                    })
                 });
 
                 const data = await response.json();
-                console.log('2FA verification response:', data);
-
+                
                 if (data.success) {
                     window.location.href = '/';
                 } else {
@@ -218,12 +152,9 @@
                     errorMessage.style.display = 'block';
                 }
             } catch (error) {
-                console.error('2FA verification error:', error);
+                console.error('Verification error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
-            } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Complete Registration';
             }
         });
     </script>

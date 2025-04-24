@@ -89,27 +89,38 @@ app.get('/setup-2fa', (req, res) => {
 app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
-        const userId = await db.createUser(username, password);
         
-        // Set session data
+        // Generate 2FA secret during registration
+        const secret = speakeasy.generateSecret({
+            name: `BusinessCard:${username}`
+        });
+
+        const userId = await db.createUser(username, password, secret.base32);
+        
+        // Store user data in session
         req.session.user = {
-            username: username,
+            username,
             id: userId,
-            isRegistering: true
+            secret: secret.base32
         };
-        
-        // Save session explicitly
-        req.session.save((err) => {
-            if (err) {
-                console.error('Session save error:', err);
-                return res.status(500).json({ error: 'Session error' });
-            }
-            console.log('Session saved:', req.session);
-            res.json({ success: true });
+
+        // Generate QR code
+        const otpAuthUrl = speakeasy.otpauthURL({
+            secret: secret.base32,
+            label: username,
+            issuer: 'BusinessCard'
+        });
+
+        const qrCodeUrl = await QRCode.toDataURL(otpAuthUrl);
+
+        res.json({
+            success: true,
+            qrCode: qrCodeUrl,
+            secret: secret.base32
         });
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(400).json({ error: 'Username already exists or registration failed' });
+        res.status(400).json({ error: 'Registration failed' });
     }
 });
 
@@ -118,15 +129,20 @@ app.post('/api/login', async (req, res) => {
         const { username, password, token } = req.body;
         const user = await db.getUser(username);
 
-        if (!user || !(await bcrypt.compare(password, user.password))) {
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         if (user.secret) {
             if (!token) {
-                return res.status(400).json({ 
-                    error: 'Please enter your 2FA token',
-                    requires2FA: true 
+                return res.json({ 
+                    requires2FA: true,
+                    message: 'Please enter 2FA token' 
                 });
             }
 
@@ -145,16 +161,10 @@ app.post('/api/login', async (req, res) => {
         req.session.user = {
             username: user.username,
             id: user.id,
-            has2FA: !!user.secret
+            verified2FA: true
         };
 
-        req.session.save((err) => {
-            if (err) {
-                console.error('Session save error:', err);
-                return res.status(500).json({ error: 'Session error' });
-            }
-            res.json({ success: true });
-        });
+        res.json({ success: true });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
@@ -298,38 +308,26 @@ app.get('/api/session-check', (req, res) => {
     });
 });
 
-// Verification endpoint
+// Verify 2FA endpoint
 app.post('/api/verify-2fa', async (req, res) => {
-    console.log('Verify 2FA - Session:', req.session);
-
-    if (!req.session.user || !req.session.tempSecret) {
-        return res.status(401).json({ error: 'Invalid session' });
-    }
-
     try {
         const { token } = req.body;
-        const secret = req.session.tempSecret;
+        const { user } = req.session;
+
+        if (!user || !user.secret) {
+            return res.status(400).json({ error: 'No 2FA secret found' });
+        }
 
         const verified = speakeasy.totp.verify({
-            secret: secret,
+            secret: user.secret,
             encoding: 'base32',
             token: token,
             window: 2
         });
 
         if (verified) {
-            await db.updateUserSecret(req.session.user.username, secret);
-            req.session.user.has2FA = true;
-            delete req.session.tempSecret;
-            delete req.session.user.isRegistering;
-
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    return res.status(500).json({ error: 'Session error' });
-                }
-                res.json({ success: true });
-            });
+            user.verified2FA = true;
+            res.json({ success: true });
         } else {
             res.json({ success: false, error: 'Invalid token' });
         }

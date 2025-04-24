@@ -28,12 +28,12 @@ db.serialize(() => {
 });
 
 const dbOperations = {
-    createUser: async (username, password) => {
+    createUser: async (username, password, secret) => {
         console.log('Creating user:', username);
         const hashedPassword = await bcrypt.hash(password, 10);
         return new Promise((resolve, reject) => {
-            db.run('INSERT INTO users (username, password) VALUES (?, ?)',
-                [username, hashedPassword],
+            db.run('INSERT INTO users (username, password, secret) VALUES (?, ?, ?)',
+                [username, hashedPassword, secret],
                 function(err) {
                     if (err) {
                         console.error('Error creating user:', err);
