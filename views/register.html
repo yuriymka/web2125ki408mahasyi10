@@ -5,31 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - Business Card</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .registration-steps {
+            margin-bottom: 20px;
+        }
+        
+        .step {
+            display: none;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        .qr-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .secret-key {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
             <h2>Register</h2>
-            <div id="errorMessage" class="error" style="display: none;"></div>
-            <form id="registerForm">
-                <div class="form-group">
-                    <input type="text" name="username" placeholder="Username" required>
+            <div id="errorMessage" class="error"></div>
+            
+            <div class="registration-steps">
+                <!-- Step 1: Account Details -->
+                <div id="step1" class="step active">
+                    <h3>Step 1: Create Account</h3>
+                    <form id="registerForm">
+                        <div class="form-group">
+                            <input type="text" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" name="confirmPassword" placeholder="Confirm Password" required>
+                        </div>
+                        <button type="submit">Continue to 2FA Setup</button>
+                    </form>
                 </div>
-                <div class="form-group">
-                    <input type="password" name="password" placeholder="Password" required>
+
+                <!-- Step 2: 2FA Setup -->
+                <div id="step2" class="step">
+                    <h3>Step 2: Set Up Google Authenticator</h3>
+                    <div class="setup-instructions">
+                        <p>1. Install Google Authenticator on your phone:</p>
+                        <ul>
+                            <li><a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android - Google Play Store</a></li>
+                            <li><a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iPhone - App Store</a></li>
+                        </ul>
+                        <p>2. Scan this QR code with the app:</p>
+                        <div id="qrcode" class="qr-container"></div>
+                        <p>Or enter this code manually in the app:</p>
+                        <div id="secret" class="secret-key"></div>
+                        <p>3. Enter the 6-digit code from the app:</p>
+                        <form id="verifyForm">
+                            <div class="form-group">
+                                <input type="text" name="token" placeholder="Enter 6-digit code" required pattern="[0-9]{6}">
+                            </div>
+                            <button type="submit">Complete Registration</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <input type="password" name="confirmPassword" placeholder="Confirm Password" required>
-                </div>
-                <button type="submit">Register</button>
-            </form>
+            </div>
+
             <p>Already have an account? <a href="/login">Login</a></p>
         </div>
     </div>
-    <script>
-        const registerForm = document.getElementById('registerForm');
-        const errorMessage = document.getElementById('errorMessage');
 
+    <script>
+        let setupSecret = '';
+        const registerForm = document.getElementById('registerForm');
+        const verifyForm = document.getElementById('verifyForm');
+        const errorMessage = document.getElementById('errorMessage');
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+
+        // Handle initial registration
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -39,10 +122,6 @@
                 errorMessage.style.display = 'block';
                 return;
             }
-
-            const submitButton = registerForm.querySelector('button');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Registering...';
 
             try {
                 const response = await fetch('/api/register', {
@@ -57,8 +136,10 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    errorMessage.style.display = 'none';
-                    window.location.href = data.redirect || '/setup-2fa';
+                    // Move to 2FA setup
+                    step1.classList.remove('active');
+                    step2.classList.add('active');
+                    setup2FA();
                 } else {
                     errorMessage.textContent = data.error || 'Registration failed';
                     errorMessage.style.display = 'block';
@@ -66,9 +147,50 @@
             } catch (error) {
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
-            } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Register';
+            }
+        });
+
+        // Handle 2FA setup
+        async function setup2FA() {
+            try {
+                const response = await fetch('/api/setup-2fa', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
+                document.getElementById('secret').textContent = data.secret;
+                setupSecret = data.secret;
+            } catch (error) {
+                errorMessage.textContent = 'Failed to setup 2FA';
+                errorMessage.style.display = 'block';
+            }
+        }
+
+        // Handle 2FA verification
+        verifyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = e.target.elements.token.value;
+
+            try {
+                const response = await fetch('/api/verify-2fa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token, secret: setupSecret })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    errorMessage.textContent = data.error || 'Invalid code. Please try again.';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'An error occurred. Please try again.';
+                errorMessage.style.display = 'block';
             }
         });
     </script>

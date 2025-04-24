@@ -70,17 +70,14 @@ app.post('/api/register', async (req, res) => {
         const { username, password } = req.body;
         const userId = await db.createUser(username, password);
         
-        // Set the user session immediately after registration
+        // Set the user session for 2FA setup
         req.session.user = {
             username: username,
             id: userId,
-            needs2FA: true // Flag to indicate 2FA setup is needed
+            registering: true // Flag to indicate registration in progress
         };
         
-        res.json({ 
-            success: true,
-            redirect: '/setup-2fa'  // Tell the client where to redirect
-        });
+        res.json({ success: true });
     } catch (error) {
         console.error('Registration error:', error);
         res.status(400).json({ error: 'Username already exists or registration failed' });
@@ -224,17 +221,19 @@ app.post('/api/verify-2fa', async (req, res) => {
             secret: secret,
             encoding: 'base32',
             token: token,
-            window: 2 // Allow 2 time steps before and after for clock drift
+            window: 2
         });
 
         if (verified) {
-            // If the user is logged in, update their secret
+            // Update user's secret in database
             if (req.session.user) {
                 await db.updateUserSecret(req.session.user.username, secret);
+                // Remove the registering flag
+                delete req.session.user.registering;
             }
             res.json({ success: true });
         } else {
-            res.json({ success: false, error: 'Invalid token. Please try again.' });
+            res.json({ success: false, error: 'Invalid code. Please try again.' });
         }
     } catch (error) {
         console.error('2FA verification error:', error);
