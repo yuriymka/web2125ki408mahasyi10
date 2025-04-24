@@ -1,14 +1,11 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const path = require('path');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
+const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
-const speakeasy = require('speakeasy');
-const QRCode = require('qrcode');
-const db = require('./db');
+const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const db = require('./db');
 const viberService = require('./viber-service');
 
 const app = express();

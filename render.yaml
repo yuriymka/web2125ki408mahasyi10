@@ -2,7 +2,10 @@ services:
   - type: web
     name: business-card-website
     env: node
-    buildCommand: npm install && npm run build
+    buildCommand: |
+      rm -rf node_modules package-lock.json
+      npm install
+      npm run build
     startCommand: |
       mkdir -p /opt/render/project/src/build/data
       chmod 777 /opt/render/project/src/build/data
