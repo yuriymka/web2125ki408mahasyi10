@@ -10,6 +10,7 @@ const db = require('./db');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const { bot, generateVerificationCode, sendVerificationCode, storeVerificationCode, verifyCode } = require('./viber');
+const viberService = require('./services/viber-service');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -103,83 +104,71 @@ app.get('/setup-2fa', (req, res) => {
 // Authentication routes
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password } = req.body;
-        
-        // Generate 2FA secret
-        const secret = speakeasy.generateSecret({
-            name: `BusinessCard:${username}`
-        });
+        const { username, password, phoneNumber } = req.body;
 
-        // Create user without saving the secret yet
-        const userId = await db.createUser(username, password);
-        
-        // Store user data in session
-        req.session.user = {
-            username,
-            id: userId
-        };
+        // Validate phone number format
+        if (!/^\+[0-9]{10,15}$/.test(phoneNumber)) {
+            return res.status(400).json({
+                error: 'Invalid phone number format. Please include country code (e.g., +1234567890)'
+            });
+        }
 
-        // Generate QR code
-        const otpAuthUrl = speakeasy.otpauthURL({
-            secret: secret.base32,
-            label: username,
-            issuer: 'BusinessCard'
-        });
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        const qrCodeUrl = await QRCode.toDataURL(otpAuthUrl);
+        // Create user
+        await db.createUser(username, hashedPassword, phoneNumber);
 
-        res.json({
-            success: true,
-            qrCode: qrCodeUrl,
-            secret: secret.base32
-        });
+        // Send verification code via Viber
+        const sent = await viberService.sendVerificationCode(phoneNumber);
+        if (!sent) {
+            return res.status(500).json({
+                error: 'Failed to send verification code. Please ensure you have Viber installed.'
+            });
+        }
+
+        res.json({ success: true });
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(400).json({ error: 'Registration failed' });
+        res.status(500).json({
+            error: error.message || 'Registration failed'
+        });
     }
 });
 
 app.post('/api/login', async (req, res) => {
     try {
-        const { username, password, viberCode } = req.body;
+        const { username, password } = req.body;
         const user = await db.getUser(username);
 
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // If user has Viber ID set up
-        if (user.viber_id) {
-            if (!viberCode) {
-                // Generate and send verification code
-                const code = generateVerificationCode();
-                const sent = await sendVerificationCode(user.viber_id, code);
-                
-                if (sent) {
-                    storeVerificationCode(user.viber_id, code);
-                    return res.json({
-                        requiresViber: true,
-                        message: 'Please enter the verification code sent to your Viber'
-                    });
-                } else {
-                    return res.status(500).json({ error: 'Failed to send Viber verification' });
-                }
-            }
-
-            // Verify the code
-            if (!verifyCode(user.viber_id, viberCode)) {
-                return res.status(401).json({ error: 'Invalid verification code' });
-            }
+        if (!user.is_verified) {
+            return res.status(401).json({
+                error: 'Please verify your phone number first'
+            });
         }
 
-        // Continue with regular session setup
-        req.session.user = {
-            id: user.id,
+        // Send login verification code
+        const sent = await viberService.sendVerificationCode(user.phone_number);
+        if (!sent) {
+            return res.status(500).json({
+                error: 'Failed to send login verification code'
+            });
+        }
+
+        // Store phone number in session for verification
+        req.session.pendingLogin = {
             username: user.username,
-            authenticated: true
+            phoneNumber: user.phone_number
         };
 
-        res.json({ success: true });
+        res.json({
+            requiresVerification: true,
+            message: 'Please check your Viber for the verification code'
+        });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
@@ -395,6 +384,63 @@ app.post('/api/connect-viber', async (req, res) => {
     } catch (error) {
         console.error('Viber connection error:', error);
         res.status(500).json({ error: 'Failed to connect Viber' });
+    }
+});
+
+// Login verification endpoint
+app.post('/api/verify-login', async (req, res) => {
+    try {
+        const { code } = req.body;
+        const pendingLogin = req.session.pendingLogin;
+
+        if (!pendingLogin) {
+            return res.status(400).json({
+                error: 'No pending login found'
+            });
+        }
+
+        if (viberService.verifyCode(pendingLogin.phoneNumber, code)) {
+            const user = await db.getUser(pendingLogin.username);
+            
+            req.session.user = {
+                id: user.id,
+                username: user.username,
+                authenticated: true
+            };
+
+            delete req.session.pendingLogin;
+            res.json({ success: true });
+        } else {
+            res.status(400).json({
+                error: 'Invalid or expired verification code'
+            });
+        }
+    } catch (error) {
+        console.error('Login verification error:', error);
+        res.status(500).json({
+            error: 'Verification failed'
+        });
+    }
+});
+
+// Phone verification endpoint
+app.post('/api/verify-phone', async (req, res) => {
+    try {
+        const { phoneNumber, code } = req.body;
+
+        if (viberService.verifyCode(phoneNumber, code)) {
+            await db.updateVerificationStatus(phoneNumber, true);
+            res.json({ success: true });
+        } else {
+            res.status(400).json({
+                error: 'Invalid or expired verification code'
+            });
+        }
+    } catch (error) {
+        console.error('Verification error:', error);
+        res.status(500).json({
+            error: 'Verification failed'
+        });
     }
 });
 

@@ -39,9 +39,8 @@
     <div class="container">
         <div class="card">
             <h2>Register</h2>
-            <div id="errorMessage" class="error"></div>
+            <div id="errorMessage" class="error" style="display: none;"></div>
             
-            <!-- Registration Form -->
             <form id="registerForm">
                 <div class="form-group">
                     <input type="text" name="username" placeholder="Username" required>
@@ -52,49 +51,48 @@
                 <div class="form-group">
                     <input type="password" name="confirmPassword" placeholder="Confirm Password" required>
                 </div>
+                <div class="form-group">
+                    <input type="tel" name="phoneNumber" placeholder="Phone Number (with country code, e.g., +1234567890)" 
+                           pattern="^\+[0-9]{10,15}$" required>
+                    <small>Enter phone number with country code (used for Viber verification)</small>
+                </div>
                 <button type="submit">Register</button>
             </form>
-
-            <!-- 2FA Setup Section -->
-            <div id="setup2FA" class="qr-container">
-                <h3>Set Up Two-Factor Authentication</h3>
-                <p>1. Install Google Authenticator on your phone</p>
-                <ul>
-                    <li><a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android - Google Play Store</a></li>
-                    <li><a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iPhone - App Store</a></li>
-                </ul>
-                <p>2. Scan this QR code:</p>
-                <div id="qrcode"></div>
-                <p>Or enter this code manually:</p>
-                <div id="secret" class="secret-key"></div>
-                
-                <!-- Verification Form -->
-                <form id="verifyForm" class="verification-form">
-                    <div class="form-group">
-                        <input type="text" name="token" placeholder="Enter 6-digit code" pattern="[0-9]{6}" required>
-                        <input type="hidden" name="secret" id="secretInput">
-                    </div>
-                    <button type="submit">Verify and Complete Setup</button>
-                </form>
+            
+            <div id="verificationSection" style="display: none;">
+                <h3>Verify Your Phone</h3>
+                <p>We've sent a verification code to your Viber account.</p>
+                <div class="form-group">
+                    <input type="text" id="verificationCode" placeholder="Enter 6-digit code">
+                </div>
+                <button onclick="verifyCode()">Verify</button>
             </div>
 
-            <p>Already have an account? <a href="/login">Login</a></p>
+            <p class="login-link">
+                Already have an account? <a href="/login">Login here</a>
+            </p>
         </div>
     </div>
 
     <script>
         const registerForm = document.getElementById('registerForm');
-        const setup2FA = document.getElementById('setup2FA');
-        const verifyForm = document.getElementById('verifyForm');
+        const verificationSection = document.getElementById('verificationSection');
         const errorMessage = document.getElementById('errorMessage');
-        let currentSecret = ''; // Store the secret
+        let currentPhoneNumber = '';
 
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessage.style.display = 'none';
-            
+
             const formData = new FormData(e.target);
-            if (formData.get('password') !== formData.get('confirmPassword')) {
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password'),
+                confirmPassword: formData.get('confirmPassword'),
+                phoneNumber: formData.get('phoneNumber')
+            };
+
+            if (data.password !== data.confirmPassword) {
                 errorMessage.textContent = 'Passwords do not match';
                 errorMessage.style.display = 'block';
                 return;
@@ -104,64 +102,51 @@
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: formData.get('username'),
-                        password: formData.get('password')
-                    })
+                    body: JSON.stringify(data)
                 });
 
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Show 2FA setup
+                const result = await response.json();
+
+                if (result.success) {
+                    currentPhoneNumber = data.phoneNumber;
                     registerForm.style.display = 'none';
-                    setup2FA.style.display = 'block';
-                    verifyForm.style.display = 'block';
-                    
-                    // Store and display QR code and secret
-                    currentSecret = data.secret;
-                    document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
-                    document.getElementById('secret').textContent = data.secret;
-                    document.getElementById('secretInput').value = data.secret;
+                    verificationSection.style.display = 'block';
                 } else {
-                    errorMessage.textContent = data.error || 'Registration failed';
+                    errorMessage.textContent = result.error || 'Registration failed';
                     errorMessage.style.display = 'block';
                 }
             } catch (error) {
-                console.error('Registration error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
             }
         });
 
-        verifyForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            errorMessage.style.display = 'none';
-
+        async function verifyCode() {
+            const code = document.getElementById('verificationCode').value;
+            
             try {
-                const response = await fetch('/api/verify-2fa', {
+                const response = await fetch('/api/verify-phone', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        token: e.target.elements.token.value,
-                        secret: currentSecret // Send the secret with verification
+                        phoneNumber: currentPhoneNumber,
+                        code: code
                     })
                 });
 
-                const data = await response.json();
-                
-                if (data.success) {
-                    window.location.href = '/';
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = '/login';
                 } else {
-                    errorMessage.textContent = data.error || 'Invalid code. Please try again.';
+                    errorMessage.textContent = result.error || 'Verification failed';
                     errorMessage.style.display = 'block';
                 }
             } catch (error) {
-                console.error('Verification error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
             }
-        });
+        }
     </script>
 </body>
 </html> 

@@ -22,26 +22,25 @@ db.serialize(() => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT,
+        phone_number TEXT UNIQUE,
         secret TEXT,
+        is_verified BOOLEAN DEFAULT 0,
         viber_id TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 });
 
 const dbOperations = {
-    createUser: async (username, password) => {
-        const hashedPassword = await bcrypt.hash(password, 10);
+    createUser: (username, password, phoneNumber) => {
         return new Promise((resolve, reject) => {
-            db.run('INSERT INTO users (username, password) VALUES (?, ?)',
-                [username, hashedPassword],
+            db.run(
+                'INSERT INTO users (username, password, phone_number) VALUES (?, ?, ?)',
+                [username, password, phoneNumber],
                 function(err) {
-                    if (err) {
-                        console.error('Database error:', err);
-                        reject(err);
-                    } else {
-                        resolve(this.lastID);
-                    }
-                });
+                    if (err) reject(err);
+                    else resolve(this.lastID);
+                }
+            );
         });
     },
 
@@ -95,6 +94,19 @@ const dbOperations = {
                     if (err) reject(err);
                     else resolve(row);
                 });
+        });
+    },
+
+    updateVerificationStatus: (phoneNumber, status) => {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE users SET is_verified = ? WHERE phone_number = ?',
+                [status, phoneNumber],
+                function(err) {
+                    if (err) reject(err);
+                    else resolve(this.changes);
+                }
+            );
         });
     }
 };
