@@ -9,7 +9,7 @@ if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'users.db');
+const dbPath = path.join(dataDir, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
 // Initialize database
@@ -33,8 +33,15 @@ const dbOperations = {
                 'INSERT INTO users (username, password, phone_number) VALUES (?, ?, ?)',
                 [username, password, phoneNumber],
                 function(err) {
-                    if (err) reject(err);
-                    else resolve(this.lastID);
+                    if (err) {
+                        if (err.code === 'SQLITE_CONSTRAINT') {
+                            reject(new Error('Username or phone number already exists'));
+                        } else {
+                            reject(err);
+                        }
+                    } else {
+                        resolve(this.lastID);
+                    }
                 }
             );
         });
@@ -97,10 +104,10 @@ const dbOperations = {
         return new Promise((resolve, reject) => {
             db.run(
                 'UPDATE users SET is_verified = ? WHERE phone_number = ?',
-                [status, phoneNumber],
+                [status ? 1 : 0, phoneNumber],
                 function(err) {
                     if (err) reject(err);
-                    else resolve(this.changes);
+                    else resolve(this.changes > 0);
                 }
             );
         });

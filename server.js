@@ -368,7 +368,15 @@ app.use((req, res, next) => {
 });
 
 // Viber webhook
-app.post('/viber/webhook', viberService.getBot().middleware());
+app.post('/viber/webhook', (req, res) => {
+    try {
+        const bot = viberService.getBot();
+        bot.middleware()(req, res);
+    } catch (error) {
+        console.error('Webhook error:', error);
+        res.status(500).json({ error: 'Webhook processing failed' });
+    }
+});
 
 // Set webhook URL for Viber bot
 const webhookUrl = process.env.NODE_ENV === 'production' 

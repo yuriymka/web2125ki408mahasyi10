@@ -1,5 +1,5 @@
 const ViberBot = require('viber-bot').Bot;
-const { Message } = require('viber-bot');
+const { Events, Message } = require('viber-bot');
 
 class ViberService {
     constructor() {
@@ -9,75 +9,89 @@ class ViberService {
             avatar: "https://raw.githubusercontent.com/devrelv/drop/master/151-icon.png"
         });
 
+        // Initialize verification codes storage
         this.verificationCodes = new Map();
 
-        // Set up bot event handlers
-        this.bot.on(ViberBot.Events.SUBSCRIBED, response => {
-            response.send(new Message.Text(
-                `Welcome to Business Card Auth! Your Viber ID is: ${response.userProfile.id}`
-            ));
-        });
-
-        this.bot.on(ViberBot.Events.MESSAGE_RECEIVED, (message, response) => {
-            response.send(new Message.Text(
-                "I'm a verification bot. You'll receive verification codes when you try to log in."
-            ));
-        });
+        // Set up basic event handlers
+        this.bot.on(Events.SUBSCRIBED, this.handleSubscribed.bind(this));
+        this.bot.on(Events.MESSAGE_RECEIVED, this.handleMessage.bind(this));
+        this.bot.on(Events.ERROR, this.handleError.bind(this));
     }
 
-    getBot() {
-        return this.bot;
+    handleSubscribed(response) {
+        try {
+            response.send(new Message.Text(
+                'Welcome! You can now receive verification codes for login.'
+            ));
+        } catch (error) {
+            console.error('Error in handleSubscribed:', error);
+        }
     }
 
-    generateVerificationCode() {
-        return Math.floor(100000 + Math.random() * 900000).toString();
+    handleMessage(message, response) {
+        try {
+            response.send(new Message.Text(
+                'This is an authentication bot. You will receive verification codes when logging in.'
+            ));
+        } catch (error) {
+            console.error('Error in handleMessage:', error);
+        }
+    }
+
+    handleError(error) {
+        console.error('Viber Bot Error:', error);
     }
 
     async sendVerificationCode(phoneNumber) {
         try {
             const code = this.generateVerificationCode();
             
-            // Store the code with expiration
             this.verificationCodes.set(phoneNumber, {
                 code,
                 timestamp: Date.now()
             });
 
-            // Send message via Viber
             await this.bot.sendMessage(
                 { id: phoneNumber },
-                new Message.Text(`Your verification code is: ${code}\nThis code will expire in 5 minutes.`)
+                new Message.Text(`Your verification code is: ${code}\nValid for 5 minutes.`)
             );
 
-            // Delete code after 5 minutes
             setTimeout(() => {
                 this.verificationCodes.delete(phoneNumber);
             }, 5 * 60 * 1000);
 
             return true;
         } catch (error) {
-            console.error('Error sending Viber message:', error);
+            console.error('Error sending verification code:', error);
             return false;
         }
+    }
+
+    generateVerificationCode() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
     }
 
     verifyCode(phoneNumber, code) {
         const stored = this.verificationCodes.get(phoneNumber);
         if (!stored) return false;
 
-        // Check if code is expired (5 minutes)
         if (Date.now() - stored.timestamp > 5 * 60 * 1000) {
             this.verificationCodes.delete(phoneNumber);
             return false;
         }
 
-        if (stored.code === code) {
+        const isValid = stored.code === code;
+        if (isValid) {
             this.verificationCodes.delete(phoneNumber);
-            return true;
         }
+        return isValid;
+    }
 
-        return false;
+    getBot() {
+        return this.bot;
     }
 }
 
-module.exports = new ViberService(); 
+// Create and export a single instance
+const viberService = new ViberService();
+module.exports = viberService; 
