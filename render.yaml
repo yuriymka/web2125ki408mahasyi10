@@ -12,4 +12,8 @@ services:
       - key: NODE_ENV
         value: production
       - key: SESSION_SECRET
-        generateValue: true 
+        generateValue: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-store 
