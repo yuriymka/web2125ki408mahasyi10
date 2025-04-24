@@ -4,6 +4,12 @@ services:
     env: node
     buildCommand: npm install && npm run build
     startCommand: cd build && NODE_ENV=production node server.js
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
-        value: production 
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true 
