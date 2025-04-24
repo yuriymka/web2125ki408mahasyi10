@@ -9,7 +9,6 @@ const QRCode = require('qrcode');
 const db = require('./db');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const { bot, generateVerificationCode, sendVerificationCode, storeVerificationCode, verifyCode } = require('./viber');
 const viberService = require('./viber-service');
 
 const app = express();
