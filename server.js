@@ -162,21 +162,53 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-app.post('/api/setup-2fa', requireAuth, async (req, res) => {
+app.post('/api/setup-2fa', async (req, res) => {
     try {
-        const secret = speakeasy.generateSecret({ length: 20 });
-        await db.updateUserSecret(req.session.user.username, secret.base32);
+        console.log('Setting up 2FA for user:', req.session.user);
+        
+        if (!req.session.user) {
+            console.log('No user session found');
+            return res.status(401).json({ error: 'Not authenticated' });
+        }
 
+        // Generate new secret
+        const secret = speakeasy.generateSecret({
+            name: `BusinessCard:${req.session.user.username}`,
+            length: 20
+        });
+
+        console.log('Generated secret for user:', {
+            username: req.session.user.username,
+            secretBase32: secret.base32
+        });
+
+        // Generate QR code
         const otpAuthUrl = speakeasy.otpauthURL({
             secret: secret.base32,
             label: req.session.user.username,
-            issuer: 'BusinessCard'
+            issuer: 'BusinessCard',
+            encoding: 'base32'
         });
 
-        const qrCodeUrl = await QRCode.toDataURL(otpAuthUrl);
-        res.json({ secret: secret.base32, qrCode: qrCodeUrl });
+        try {
+            const qrCodeUrl = await QRCode.toDataURL(otpAuthUrl);
+            console.log('QR code generated successfully');
+
+            // Store the secret temporarily in the session
+            req.session.tempSecret = secret.base32;
+            
+            res.json({
+                success: true,
+                secret: secret.base32,
+                qrCode: qrCodeUrl
+            });
+        } catch (qrError) {
+            console.error('QR code generation error:', qrError);
+            res.status(500).json({ error: 'Failed to generate QR code' });
+        }
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        console.error('2FA setup error:', error);
+        res.status(500).json({ error: 'Failed to setup 2FA' });
     }
 });
 
@@ -225,12 +257,19 @@ app.get('/api/session', (req, res) => {
     });
 });
 
-// Add this new route for 2FA verification
+// Update the verify-2fa endpoint
 app.post('/api/verify-2fa', async (req, res) => {
     try {
-        const { token, secret } = req.body;
+        console.log('Verifying 2FA token:', {
+            hasToken: !!req.body.token,
+            username: req.session.user?.username
+        });
+
+        const { token } = req.body;
+        const secret = req.session.tempSecret; // Use the secret stored in session
 
         if (!token || !secret) {
+            console.log('Missing token or secret:', { hasToken: !!token, hasSecret: !!secret });
             return res.status(400).json({ error: 'Token and secret are required' });
         }
 
@@ -238,19 +277,27 @@ app.post('/api/verify-2fa', async (req, res) => {
             secret: secret,
             encoding: 'base32',
             token: token,
-            window: 2
+            window: 2 // Allow 2 time steps before and after for clock drift
         });
 
+        console.log('Token verification result:', verified);
+
         if (verified) {
-            // Update user's secret in database
-            if (req.session.user) {
+            try {
+                // Save the verified secret to the database
                 await db.updateUserSecret(req.session.user.username, secret);
-                // Remove the registering flag
-                delete req.session.user.registering;
+                console.log('Secret saved to database for user:', req.session.user.username);
+                
+                // Clear the temporary secret from session
+                delete req.session.tempSecret;
+                
+                res.json({ success: true });
+            } catch (dbError) {
+                console.error('Database error while saving secret:', dbError);
+                res.status(500).json({ error: 'Failed to save 2FA settings' });
             }
-            res.json({ success: true });
         } else {
-            res.json({ success: false, error: 'Invalid code. Please try again.' });
+            res.json({ success: false, error: 'Invalid token. Please try again.' });
         }
     } catch (error) {
         console.error('2FA verification error:', error);

@@ -62,13 +62,22 @@ const dbOperations = {
         });
     },
 
-    updateUserSecret: (username, secret) => {
+    updateUserSecret: async (username, secret) => {
+        console.log('Updating user secret:', { username, hasSecret: !!secret });
         return new Promise((resolve, reject) => {
             db.run('UPDATE users SET secret = ? WHERE username = ?',
                 [secret, username],
-                (err) => {
-                    if (err) reject(err);
-                    else resolve();
+                function(err) {
+                    if (err) {
+                        console.error('Error updating user secret:', err);
+                        reject(err);
+                    } else {
+                        console.log('User secret updated successfully:', {
+                            username,
+                            changes: this.changes
+                        });
+                        resolve(this.changes);
+                    }
                 });
         });
     }

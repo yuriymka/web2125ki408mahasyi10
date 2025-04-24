@@ -115,6 +115,7 @@
         // Handle initial registration
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            errorMessage.style.display = 'none';
             const formData = new FormData(e.target);
             
             if (formData.get('password') !== formData.get('confirmPassword')) {
@@ -122,6 +123,10 @@
                 errorMessage.style.display = 'block';
                 return;
             }
+
+            const submitButton = e.target.querySelector('button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Registering...';
 
             try {
                 const response = await fetch('/api/register', {
@@ -134,19 +139,24 @@
                 });
 
                 const data = await response.json();
+                console.log('Registration response:', data);
                 
                 if (data.success) {
                     // Move to 2FA setup
                     step1.classList.remove('active');
                     step2.classList.add('active');
-                    setup2FA();
+                    await setup2FA();
                 } else {
                     errorMessage.textContent = data.error || 'Registration failed';
                     errorMessage.style.display = 'block';
                 }
             } catch (error) {
+                console.error('Registration error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Continue to 2FA Setup';
             }
         });
 
@@ -154,15 +164,27 @@
         async function setup2FA() {
             try {
                 const response = await fetch('/api/setup-2fa', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
                 });
-                const data = await response.json();
                 
-                document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
-                document.getElementById('secret').textContent = data.secret;
-                setupSecret = data.secret;
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('2FA setup response:', data);
+                
+                if (data.success) {
+                    document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
+                    document.getElementById('secret').textContent = data.secret;
+                    setupSecret = data.secret;
+                } else {
+                    throw new Error(data.error || 'Failed to setup 2FA');
+                }
             } catch (error) {
-                errorMessage.textContent = 'Failed to setup 2FA';
+                console.error('2FA setup error:', error);
+                errorMessage.textContent = 'Failed to setup 2FA: ' + error.message;
                 errorMessage.style.display = 'block';
             }
         }
@@ -170,7 +192,12 @@
         // Handle 2FA verification
         verifyForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            errorMessage.style.display = 'none';
             const token = e.target.elements.token.value;
+
+            const submitButton = e.target.querySelector('button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Verifying...';
 
             try {
                 const response = await fetch('/api/verify-2fa', {
@@ -178,9 +205,11 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ token, secret: setupSecret })
+                    body: JSON.stringify({ token })
                 });
+
                 const data = await response.json();
+                console.log('2FA verification response:', data);
 
                 if (data.success) {
                     window.location.href = '/';
@@ -189,8 +218,12 @@
                     errorMessage.style.display = 'block';
                 }
             } catch (error) {
+                console.error('2FA verification error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Complete Registration';
             }
         });
     </script>
