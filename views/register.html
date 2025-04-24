@@ -10,6 +10,7 @@
     <div class="container">
         <div class="card">
             <h2>Register</h2>
+            <div id="errorMessage" class="error" style="display: none;"></div>
             <form id="registerForm">
                 <div class="form-group">
                     <input type="text" name="username" placeholder="Username" required>
@@ -26,35 +27,48 @@
         </div>
     </div>
     <script>
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        const registerForm = document.getElementById('registerForm');
+        const errorMessage = document.getElementById('errorMessage');
+
+        registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             
             if (formData.get('password') !== formData.get('confirmPassword')) {
-                alert('Passwords do not match');
+                errorMessage.textContent = 'Passwords do not match';
+                errorMessage.style.display = 'block';
                 return;
             }
 
-            const data = {
-                username: formData.get('username'),
-                password: formData.get('password')
-            };
+            const submitButton = registerForm.querySelector('button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Registering...';
 
             try {
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        username: formData.get('username'),
+                        password: formData.get('password')
+                    })
                 });
 
-                const result = await response.json();
-                if (result.success) {
-                    window.location.href = '/setup-2fa';
+                const data = await response.json();
+                
+                if (data.success) {
+                    errorMessage.style.display = 'none';
+                    window.location.href = data.redirect || '/setup-2fa';
                 } else {
-                    alert(result.error || 'Registration failed');
+                    errorMessage.textContent = data.error || 'Registration failed';
+                    errorMessage.style.display = 'block';
                 }
             } catch (error) {
-                alert('Registration failed');
+                errorMessage.textContent = 'An error occurred. Please try again.';
+                errorMessage.style.display = 'block';
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Register';
             }
         });
     </script>

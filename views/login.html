@@ -18,7 +18,7 @@
                 <div class="form-group">
                     <input type="password" name="password" placeholder="Password" required>
                 </div>
-                <div class="form-group" id="totpGroup">
+                <div class="form-group" id="totpGroup" style="display: none;">
                     <input type="text" name="token" placeholder="2FA Token (from Google Authenticator)">
                 </div>
                 <button type="submit">Login</button>
@@ -29,12 +29,12 @@
     <script>
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('errorMessage');
+        const totpGroup = document.getElementById('totpGroup');
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             
-            // Show loading state
             const submitButton = loginForm.querySelector('button');
             submitButton.disabled = true;
             submitButton.textContent = 'Logging in...';
@@ -51,17 +51,21 @@
                 });
 
                 const data = await response.json();
-                console.log('Login response:', data); // Debug log
+                console.log('Login response:', data);
 
                 if (data.success) {
                     errorMessage.style.display = 'none';
-                    window.location.href = '/';
+                    window.location.href = data.redirect || '/';
+                } else if (data.requires2FA) {
+                    errorMessage.textContent = data.error;
+                    errorMessage.style.display = 'block';
+                    totpGroup.style.display = 'block';
                 } else {
-                    errorMessage.textContent = data.error || 'Login failed. Please try again.';
+                    errorMessage.textContent = data.error || 'Login failed';
                     errorMessage.style.display = 'block';
                 }
             } catch (error) {
-                console.error('Login error:', error); // Debug log
+                console.error('Login error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
             } finally {

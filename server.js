@@ -26,11 +26,16 @@ app.use(session({
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
-    if (req.session.user) {
-        next();
-    } else {
-        res.redirect('/login');
+    if (!req.session.user) {
+        return res.redirect('/login');
     }
+    
+    // If user needs to set up 2FA, redirect them
+    if (req.session.user.needs2FA && req.path !== '/setup-2fa') {
+        return res.redirect('/setup-2fa');
+    }
+    
+    next();
 };
 
 // Add this debug middleware to log requests
@@ -52,7 +57,10 @@ app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'register.html'), { root: '/' });
 });
 
-app.get('/setup-2fa', requireAuth, (req, res) => {
+app.get('/setup-2fa', (req, res) => {
+    if (!req.session.user) {
+        return res.redirect('/login');
+    }
     res.sendFile(path.join(__dirname, 'views', 'setup-2fa.html'), { root: '/' });
 });
 
@@ -60,10 +68,22 @@ app.get('/setup-2fa', requireAuth, (req, res) => {
 app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
-        await db.createUser(username, password);
-        res.json({ success: true });
+        const userId = await db.createUser(username, password);
+        
+        // Set the user session immediately after registration
+        req.session.user = {
+            username: username,
+            id: userId,
+            needs2FA: true // Flag to indicate 2FA setup is needed
+        };
+        
+        res.json({ 
+            success: true,
+            redirect: '/setup-2fa'  // Tell the client where to redirect
+        });
     } catch (error) {
-        res.status(400).json({ error: 'Username already exists' });
+        console.error('Registration error:', error);
+        res.status(400).json({ error: 'Username already exists or registration failed' });
     }
 });
 
@@ -78,19 +98,20 @@ app.post('/api/login', async (req, res) => {
         }
 
         const user = await db.getUser(username);
-        console.log('User found:', !!user); // Debug log
+        console.log('User found:', !!user);
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
-        console.log('Password valid:', validPassword); // Debug log
+        console.log('Password valid:', validPassword);
 
         if (!validPassword) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Check if 2FA is set up
         if (user.secret) {
             if (!token) {
                 return res.status(400).json({ 
@@ -103,28 +124,26 @@ app.post('/api/login', async (req, res) => {
                 secret: user.secret,
                 encoding: 'base32',
                 token: token,
-                window: 2 // Allow 2 time steps before and after for clock drift
+                window: 2
             });
-            console.log('2FA verification:', verified); // Debug log
 
             if (!verified) {
                 return res.status(401).json({ error: 'Invalid 2FA token' });
             }
         }
 
-        // Set user session
         req.session.user = { 
             username: user.username,
-            id: user.id
+            id: user.id,
+            needs2FA: !user.secret // Set needs2FA if user hasn't set up 2FA yet
         };
-        console.log('Session created:', req.session.user); // Debug log
 
         res.json({ 
             success: true,
-            message: 'Login successful'
+            redirect: user.secret ? '/' : '/setup-2fa'
         });
     } catch (error) {
-        console.error('Login error:', error); // Debug log
+        console.error('Login error:', error);
         res.status(500).json({ error: 'Server error during login' });
     }
 });
