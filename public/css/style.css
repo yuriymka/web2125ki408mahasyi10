@@ -77,3 +77,36 @@ button:hover {
     color: #666;
     font-size: 0.9em;
 }
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+#qrcode {
+    text-align: center;
+    margin: 20px 0;
+}
+
+#qrcode img {
+    max-width: 200px;
+}
+
+.error {
+    color: #dc3545;
+    margin-top: 5px;
+    font-size: 0.9em;
+}
+
+.success {
+    color: #28a745;
+    margin-top: 5px;
+    font-size: 0.9em;
+}

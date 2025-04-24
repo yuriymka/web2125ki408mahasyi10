@@ -1,34 +1,131 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
+const db = require('./db');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Determine the root directory
-const rootDir = process.env.NODE_ENV === 'production' 
-    ? path.join(__dirname) 
-    : path.join(__dirname);
-
 // Middleware
-app.use(express.static(path.join(rootDir, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(session({
+    secret: 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
 
-// Serve static HTML files with absolute paths
-app.get('/', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views', 'index.html'), { root: '/' });
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+    if (req.session.user) {
+        next();
+    } else {
+        res.redirect('/login');
+    }
+};
+
+// Serve static HTML files
+app.get('/', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'index.html'), { root: '/' });
 });
 
-app.get('/get-page', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views', 'get-page.html'), { root: '/' });
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'login.html'), { root: '/' });
 });
 
-app.get('/post-page', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views', 'post-page.html'), { root: '/' });
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'register.html'), { root: '/' });
 });
 
-app.get('/ajax-forms', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views', 'ajax-forms.html'), { root: '/' });
+app.get('/setup-2fa', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'setup-2fa.html'), { root: '/' });
+});
+
+// Authentication routes
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        await db.createUser(username, password);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ error: 'Username already exists' });
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password, token } = req.body;
+        const user = await db.getUser(username);
+
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        if (user.secret) {
+            // Verify 2FA token if secret exists
+            const verified = speakeasy.totp.verify({
+                secret: user.secret,
+                encoding: 'base32',
+                token: token
+            });
+
+            if (!verified) {
+                return res.status(401).json({ error: 'Invalid 2FA token' });
+            }
+        }
+
+        req.session.user = { username: user.username };
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/setup-2fa', requireAuth, async (req, res) => {
+    try {
+        const secret = speakeasy.generateSecret({ length: 20 });
+        await db.updateUserSecret(req.session.user.username, secret.base32);
+
+        const otpAuthUrl = speakeasy.otpauthURL({
+            secret: secret.base32,
+            label: req.session.user.username,
+            issuer: 'BusinessCard'
+        });
+
+        const qrCodeUrl = await QRCode.toDataURL(otpAuthUrl);
+        res.json({ secret: secret.base32, qrCode: qrCodeUrl });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ success: true });
+});
+
+// Original routes with auth middleware
+app.get('/get-page', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'get-page.html'), { root: '/' });
+});
+
+app.get('/post-page', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'post-page.html'), { root: '/' });
+});
+
+app.get('/ajax-forms', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'ajax-forms.html'), { root: '/' });
 });
 
 // API endpoints
@@ -50,7 +147,7 @@ app.post('/api/data', (req, res) => {
     res.json(responseData);
 });
 
+// Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
-    console.log('Root directory:', rootDir);
 });

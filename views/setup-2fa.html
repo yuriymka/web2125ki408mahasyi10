@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup 2FA - Business Card</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h2>Setup Two-Factor Authentication</h2>
+            <div id="qrcode"></div>
+            <p>Scan the QR code with Google Authenticator app</p>
+            <p>Or enter this code manually: <strong id="secret"></strong></p>
+            <button onclick="window.location.href='/'">Continue to Homepage</button>
+        </div>
+    </div>
+    <script>
+        async function setup2FA() {
+            try {
+                const response = await fetch('/api/setup-2fa', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                document.getElementById('qrcode').innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
+                document.getElementById('secret').textContent = data.secret;
+            } catch (error) {
+                alert('Failed to setup 2FA');
+            }
+        }
+
+        setup2FA();
+    </script>
+</body>
+</html> 
