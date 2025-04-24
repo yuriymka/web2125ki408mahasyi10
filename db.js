@@ -77,7 +77,7 @@ const dbOperations = {
     }
 };
 
-// Add a test method to check database connection
+// Add a test method to check database connection 
 dbOperations.testConnection = () => {
     return new Promise((resolve, reject) => {
         db.get('SELECT 1', (err, row) => {
@@ -97,3 +97,10 @@ dbOperations.testConnection()
     .catch(err => console.error('Initial database connection test failed:', err));
 
 module.exports = dbOperations; 
+// idk if it works, but it's the only way i found to make it work in production
+// i'm not sure if it's the best way to do it, but it works for now
+// i'm not sure if it's the best way to do it, but it works for now
+// i'm not sure if it's the best way to do it, but it works for now
+// i'm not sure if it's the best way to do it, but it works for now
+// i'm not sure if it's the best way to do it, but it works for now
+
