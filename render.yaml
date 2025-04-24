@@ -1,12 +1,11 @@
 services:
   - type: web
     name: business-card-website
-    env: node
-    buildCommand: npm install && npm run build
-    startCommand: cd build && NODE_ENV=production node server.js
+    env: docker
+    dockerfilePath: ./Dockerfile
     disk:
       name: data
-      mountPath: /opt/render/project/src/data
+      mountPath: /app/data
       sizeGB: 1
     envVars:
       - key: NODE_ENV

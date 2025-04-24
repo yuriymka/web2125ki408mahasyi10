@@ -8,6 +8,7 @@ const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const db = require('./db');
 const fs = require('fs');
+const { spawn } = require('child_process');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -212,13 +213,58 @@ app.get('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// Original routes with auth middleware
-app.get('/get-page', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'get-page.html'), { root: '/' });
+// Add PHP handler middleware
+const handlePhp = (req, res, next) => {
+    if (req.url.endsWith('.php')) {
+        const phpScript = path.join(__dirname, 'views', path.basename(req.url));
+        const php = spawn('php', ['-f', phpScript]);
+        
+        let output = '';
+        
+        php.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        php.stderr.on('data', (data) => {
+            console.error(`PHP Error: ${data}`);
+        });
+
+        php.on('close', (code) => {
+            if (code === 0) {
+                res.send(output);
+            } else {
+                res.status(500).send('PHP execution failed');
+            }
+        });
+
+        // Pass GET/POST data to PHP
+        if (req.method === 'POST') {
+            php.stdin.write(JSON.stringify(req.body));
+        }
+        php.stdin.end();
+    } else {
+        next();
+    }
+};
+
+// Add the middleware
+app.use(handlePhp);
+
+// Update routes to handle both PHP and HTML versions
+app.get('/get-page', (req, res) => {
+    if (req.headers.accept?.includes('text/html')) {
+        res.sendFile(path.join(__dirname, 'views', 'get-page.php'));
+    } else {
+        res.sendFile(path.join(__dirname, 'views', 'get-page.html'));
+    }
 });
 
-app.get('/post-page', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'post-page.html'), { root: '/' });
+app.get('/post-page', (req, res) => {
+    if (req.headers.accept?.includes('text/html')) {
+        res.sendFile(path.join(__dirname, 'views', 'post-page.php'));
+    } else {
+        res.sendFile(path.join(__dirname, 'views', 'post-page.html'));
+    }
 });
 
 app.get('/ajax-forms', requireAuth, (req, res) => {
