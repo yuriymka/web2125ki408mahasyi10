@@ -15,10 +15,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(session({
-    secret: 'your-secret-key',
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
 
 // Authentication middleware
@@ -29,6 +32,12 @@ const requireAuth = (req, res, next) => {
         res.redirect('/login');
     }
 };
+
+// Add this debug middleware to log requests
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
 
 // Serve static HTML files
 app.get('/', requireAuth, (req, res) => {
@@ -59,36 +68,64 @@ app.post('/api/register', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
+    console.log('Login attempt:', { username: req.body.username, hasToken: !!req.body.token });
+    
     try {
         const { username, password, token } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password are required' });
+        }
+
         const user = await db.getUser(username);
+        console.log('User found:', !!user); // Debug log
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
+        console.log('Password valid:', validPassword); // Debug log
+
         if (!validPassword) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         if (user.secret) {
-            // Verify 2FA token if secret exists
+            if (!token) {
+                return res.status(400).json({ 
+                    error: 'Please enter your 2FA token',
+                    requires2FA: true 
+                });
+            }
+
             const verified = speakeasy.totp.verify({
                 secret: user.secret,
                 encoding: 'base32',
-                token: token
+                token: token,
+                window: 2 // Allow 2 time steps before and after for clock drift
             });
+            console.log('2FA verification:', verified); // Debug log
 
             if (!verified) {
                 return res.status(401).json({ error: 'Invalid 2FA token' });
             }
         }
 
-        req.session.user = { username: user.username };
-        res.json({ success: true });
+        // Set user session
+        req.session.user = { 
+            username: user.username,
+            id: user.id
+        };
+        console.log('Session created:', req.session.user); // Debug log
+
+        res.json({ 
+            success: true,
+            message: 'Login successful'
+        });
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        console.error('Login error:', error); // Debug log
+        res.status(500).json({ error: 'Server error during login' });
     }
 });
 
@@ -145,6 +182,14 @@ app.post('/api/data', (req, res) => {
         timestamp: new Date().toISOString()
     };
     res.json(responseData);
+});
+
+// Add a route to check session status
+app.get('/api/session', (req, res) => {
+    res.json({
+        isAuthenticated: !!req.session.user,
+        user: req.session.user || null
+    });
 });
 
 // Start server

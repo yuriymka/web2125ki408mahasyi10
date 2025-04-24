@@ -10,6 +10,7 @@
     <div class="container">
         <div class="card">
             <h2>Login</h2>
+            <div id="errorMessage" class="error" style="display: none;"></div>
             <form id="loginForm">
                 <div class="form-group">
                     <input type="text" name="username" placeholder="Username" required>
@@ -17,8 +18,8 @@
                 <div class="form-group">
                     <input type="password" name="password" placeholder="Password" required>
                 </div>
-                <div class="form-group" id="totpGroup" style="display: none;">
-                    <input type="text" name="token" placeholder="2FA Token">
+                <div class="form-group" id="totpGroup">
+                    <input type="text" name="token" placeholder="2FA Token (from Google Authenticator)">
                 </div>
                 <button type="submit">Login</button>
             </form>
@@ -26,32 +27,46 @@
         </div>
     </div>
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        const loginForm = document.getElementById('loginForm');
+        const errorMessage = document.getElementById('errorMessage');
+
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const data = {
-                username: formData.get('username'),
-                password: formData.get('password'),
-                token: formData.get('token')
-            };
-
+            
+            // Show loading state
+            const submitButton = loginForm.querySelector('button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Logging in...';
+            
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        username: formData.get('username'),
+                        password: formData.get('password'),
+                        token: formData.get('token')
+                    })
                 });
 
-                const result = await response.json();
-                if (result.success) {
+                const data = await response.json();
+                console.log('Login response:', data); // Debug log
+
+                if (data.success) {
+                    errorMessage.style.display = 'none';
                     window.location.href = '/';
-                } else if (result.requires2FA) {
-                    document.getElementById('totpGroup').style.display = 'block';
                 } else {
-                    alert(result.error || 'Login failed');
+                    errorMessage.textContent = data.error || 'Login failed. Please try again.';
+                    errorMessage.style.display = 'block';
                 }
             } catch (error) {
-                alert('Login failed');
+                console.error('Login error:', error); // Debug log
+                errorMessage.textContent = 'An error occurred. Please try again.';
+                errorMessage.style.display = 'block';
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Login';
             }
         });
     </script>

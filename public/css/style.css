@@ -100,13 +100,26 @@ button:hover {
 }
 
 .error {
-    color: #dc3545;
-    margin-top: 5px;
-    font-size: 0.9em;
+    background-color: #ffebee;
+    color: #c62828;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #ffcdd2;
 }
 
 .success {
     color: #28a745;
     margin-top: 5px;
     font-size: 0.9em;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.loading {
+    opacity: 0.7;
+    cursor: wait;
 }
