@@ -14,22 +14,24 @@ const viberService = require('./viber-service');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Ensure data directory exists
-const dataDir = process.env.NODE_ENV === 'production'
-    ? '/opt/render/project/src/data'
-    : path.join(__dirname, 'data');
-
+// Create data directory if it doesn't exist
+const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
 // Place this before any routes
 const sessionConfig = {
+    store: new SQLiteStore({
+        db: 'sessions.db',
+        dir: path.join(__dirname, 'data'),
+        table: 'sessions'
+    }),
     secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: true,
+    resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false, // Set to false for now (we'll handle this better later)
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
@@ -38,7 +40,6 @@ const sessionConfig = {
 // If in production, update cookie settings
 if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1); // trust first proxy
-    sessionConfig.cookie.secure = true; // serve secure cookies
     sessionConfig.cookie.sameSite = 'none'; // allow cross-site cookie
 }
 
