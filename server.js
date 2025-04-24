@@ -53,8 +53,9 @@ app.use((req, res, next) => {
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
-    console.log('Checking auth:', req.session);
+    console.log('Auth check - Session:', req.session);
     if (!req.session.user || !req.session.user.authenticated) {
+        console.log('Not authenticated, redirecting to login');
         return res.redirect('/login');
     }
     next();
@@ -62,7 +63,7 @@ const requireAuth = (req, res, next) => {
 
 // Serve static HTML files
 app.get('/', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'index.html'), { root: '/' });
+    res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 app.get('/login', (req, res) => {
@@ -164,7 +165,8 @@ app.post('/api/login', async (req, res) => {
         req.session.user = {
             id: user.id,
             username: user.username,
-            authenticated: true
+            authenticated: true,
+            lastLogin: new Date().toISOString()
         };
 
         // Save session explicitly
@@ -173,10 +175,10 @@ app.post('/api/login', async (req, res) => {
                 console.error('Session save error:', err);
                 return res.status(500).json({ error: 'Session error' });
             }
-            console.log('Session saved:', req.session);
+            console.log('Session saved successfully:', req.session);
             res.json({ 
                 success: true,
-                message: 'Login successful'
+                redirect: '/'
             });
         });
 
@@ -281,24 +283,16 @@ const handlePhp = (req, res, next) => {
 app.use(handlePhp);
 
 // Update routes to handle both PHP and HTML versions
-app.get('/get-page', (req, res) => {
-    if (req.headers.accept?.includes('text/html')) {
-        res.sendFile(path.join(__dirname, 'views', 'get-page.php'));
-    } else {
-        res.sendFile(path.join(__dirname, 'views', 'get-page.html'));
-    }
+app.get('/get-page', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'get-page.html'));
 });
 
-app.get('/post-page', (req, res) => {
-    if (req.headers.accept?.includes('text/html')) {
-        res.sendFile(path.join(__dirname, 'views', 'post-page.php'));
-    } else {
-        res.sendFile(path.join(__dirname, 'views', 'post-page.html'));
-    }
+app.get('/post-page', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'post-page.html'));
 });
 
 app.get('/ajax-forms', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'ajax-forms.html'), { root: '/' });
+    res.sendFile(path.join(__dirname, 'views', 'ajax-forms.html'));
 });
 
 // API endpoints
