@@ -13,20 +13,30 @@
             <a href="/get-page">GET Page</a>
             <a href="/post-page">POST Page</a>
             <a href="/ajax-forms">AJAX Forms</a>
+            <a href="/api/logout" id="logoutLink">Logout</a>
         </nav>
         
         <div class="card">
-            <h1>Mahas Yurii</h1>
-            <h2>Computer Engineer</h2>
-            <p>Email: yurii.mahas.ki.2021@lpnu.ua</p>
-            <p>Phone: 0098273547</p>
-            <p>Location: Lviv</p>
+            <h1>Welcome to Business Card</h1>
+            <div id="userInfo"></div>
             <div class="timestamp">Page loaded at: <span id="loadTime"></span></div>
         </div>
     </div>
 
     <script>
         document.getElementById('loadTime').textContent = new Date().toLocaleString();
+
+        // Check session status
+        fetch('/api/session-check')
+            .then(response => response.json())
+            .then(data => {
+                if (data.isAuthenticated && data.user) {
+                    document.getElementById('userInfo').innerHTML = `
+                        <p>Welcome, ${data.user.username}!</p>
+                    `;
+                }
+            })
+            .catch(error => console.error('Session check error:', error));
     </script>
 </body>
 </html>

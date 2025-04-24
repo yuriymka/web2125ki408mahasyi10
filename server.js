@@ -53,15 +53,10 @@ app.use((req, res, next) => {
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
-    if (!req.session.user) {
+    console.log('Checking auth:', req.session);
+    if (!req.session.user || !req.session.user.authenticated) {
         return res.redirect('/login');
     }
-    
-    // If user needs to set up 2FA, redirect them
-    if (req.session.user.needs2FA && req.path !== '/setup-2fa') {
-        return res.redirect('/setup-2fa');
-    }
-    
     next();
 };
 
@@ -71,6 +66,9 @@ app.get('/', requireAuth, (req, res) => {
 });
 
 app.get('/login', (req, res) => {
+    if (req.session.user && req.session.user.authenticated) {
+        return res.redirect('/');
+    }
     res.sendFile(path.join(__dirname, 'views', 'login.html'), { root: '/' });
 });
 
@@ -126,8 +124,11 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
     try {
+        console.log('Login attempt:', req.body);
         const { username, password, token } = req.body;
+        
         const user = await db.getUser(username);
+        console.log('User found:', user ? 'yes' : 'no');
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -138,6 +139,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Check 2FA if enabled
         if (user.secret) {
             if (!token) {
                 return res.json({ 
@@ -158,13 +160,26 @@ app.post('/api/login', async (req, res) => {
             }
         }
 
+        // Set session data
         req.session.user = {
-            username: user.username,
             id: user.id,
-            verified2FA: true
+            username: user.username,
+            authenticated: true
         };
 
-        res.json({ success: true });
+        // Save session explicitly
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ error: 'Session error' });
+            }
+            console.log('Session saved:', req.session);
+            res.json({ 
+                success: true,
+                message: 'Login successful'
+            });
+        });
+
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
@@ -219,8 +234,13 @@ app.post('/api/setup-2fa', async (req, res) => {
 });
 
 app.get('/api/logout', (req, res) => {
-    req.session.destroy();
-    res.json({ success: true });
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Logout error:', err);
+            return res.status(500).json({ error: 'Logout failed' });
+        }
+        res.redirect('/login');
+    });
 });
 
 // Add PHP handler middleware
@@ -303,7 +323,7 @@ app.post('/api/data', (req, res) => {
 // Add a session check endpoint
 app.get('/api/session-check', (req, res) => {
     res.json({
-        isAuthenticated: !!req.session.user,
+        isAuthenticated: !!(req.session.user && req.session.user.authenticated),
         user: req.session.user || null
     });
 });

@@ -28,8 +28,8 @@
                 <div class="form-group">
                     <input type="password" name="password" placeholder="Password" required>
                 </div>
-                <div class="form-group">
-                    <input type="text" name="token" placeholder="2FA Code (from Google Authenticator)" pattern="[0-9]{6}">
+                <div class="form-group" id="totpGroup">
+                    <input type="text" name="token" placeholder="2FA Code (6 digits)" pattern="[0-9]{6}">
                     <small>Enter the 6-digit code from Google Authenticator</small>
                 </div>
                 <button type="submit">Login</button>
@@ -41,41 +41,46 @@
     <script>
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('errorMessage');
+        const totpGroup = document.getElementById('totpGroup');
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            errorMessage.style.display = 'none';
+
             const formData = new FormData(e.target);
-            
-            const submitButton = e.target.querySelector('button');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Logging in...';
-            
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password'),
+                token: formData.get('token')
+            };
+
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: formData.get('username'),
-                        password: formData.get('password'),
-                        token: formData.get('token')
-                    })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data),
+                    credentials: 'same-origin' // Important for session handling
                 });
 
-                const data = await response.json();
-                
-                if (data.success) {
-                    errorMessage.style.display = 'none';
-                    window.location.href = '/';
+                const result = await response.json();
+                console.log('Login response:', result);
+
+                if (result.success) {
+                    window.location.href = '/'; // Redirect to home page
+                } else if (result.requires2FA) {
+                    errorMessage.textContent = 'Please enter your 2FA code';
+                    errorMessage.style.display = 'block';
+                    totpGroup.style.display = 'block';
                 } else {
-                    errorMessage.textContent = data.error || 'Login failed';
+                    errorMessage.textContent = result.error || 'Login failed';
                     errorMessage.style.display = 'block';
                 }
             } catch (error) {
+                console.error('Login error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
-            } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Login';
             }
         });
     </script>
