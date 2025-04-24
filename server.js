@@ -2,24 +2,41 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcryptjs');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const db = require('./db');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Ensure data directory exists
+const dataDir = process.env.NODE_ENV === 'production'
+    ? '/opt/render/project/src/data'
+    : path.join(__dirname, 'data');
+
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
 
 // Middleware
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(session({
+    store: new SQLiteStore({
+        dir: dataDir,
+        db: 'sessions.db',
+        table: 'sessions'
+    }),
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { 
+    cookie: {
         secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));

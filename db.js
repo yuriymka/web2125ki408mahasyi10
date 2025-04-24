@@ -1,19 +1,19 @@
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const fs = require('fs');
 
 // Use different paths for development and production
-const dbPath = process.env.NODE_ENV === 'production'
-    ? path.join('/opt/render/project/src/data', 'users.db')
-    : path.join(__dirname, 'users.db');
+const dataDir = process.env.NODE_ENV === 'production'
+    ? '/opt/render/project/src/data'
+    : path.join(__dirname, 'data');
 
-// Ensure the directory exists
-const fs = require('fs');
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+// Ensure data directory exists
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
 }
 
+const dbPath = path.join(dataDir, 'users.db');
 const db = new sqlite3.Database(dbPath);
 
 // Initialize database
