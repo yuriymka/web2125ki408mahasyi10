@@ -5,28 +5,30 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Determine the root directory
-const rootDir = process.env.NODE_ENV === 'production' ? '.' : path.join(__dirname);
+const rootDir = process.env.NODE_ENV === 'production' 
+    ? path.join(__dirname) 
+    : path.join(__dirname);
 
 // Middleware
 app.use(express.static(path.join(rootDir, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Serve static HTML files
+// Serve static HTML files with absolute paths
 app.get('/', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views/index.html'));
+    res.sendFile(path.join(rootDir, 'views', 'index.html'), { root: '/' });
 });
 
 app.get('/get-page', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views/get-page.html'));
+    res.sendFile(path.join(rootDir, 'views', 'get-page.html'), { root: '/' });
 });
 
 app.get('/post-page', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views/post-page.html'));
+    res.sendFile(path.join(rootDir, 'views', 'post-page.html'), { root: '/' });
 });
 
 app.get('/ajax-forms', (req, res) => {
-    res.sendFile(path.join(rootDir, 'views/ajax-forms.html'));
+    res.sendFile(path.join(rootDir, 'views', 'ajax-forms.html'), { root: '/' });
 });
 
 // API endpoints
@@ -50,4 +52,5 @@ app.post('/api/data', (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
+    console.log('Root directory:', rootDir);
 });

@@ -3,7 +3,7 @@ services:
     name: business-card-website
     env: node
     buildCommand: npm install && npm run build
-    startCommand: cd build && node server.js
+    startCommand: cd build && NODE_ENV=production node server.js
     envVars:
       - key: NODE_ENV
         value: production 
