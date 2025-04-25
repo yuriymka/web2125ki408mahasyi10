@@ -18,10 +18,14 @@ jobs:
           node-version: '18'
           
       - name: Install Dependencies
-        run: npm install
+        run: |
+          cd project
+          npm install
         
       - name: Build
-        run: npm run build
+        run: |
+          cd project
+          npm run build
         
       - name: Deploy via SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
@@ -29,7 +33,7 @@ jobs:
           username: ${{ secrets.SFTP_USERNAME }}
           server: ${{ secrets.SFTP_SERVER }}
           port: ${{ secrets.SFTP_PORT }}
-          local_path: './dist/*'  # Adjust this to your build output directory
+          local_path: './project/dist/*'  # Adjusted to include project directory
           remote_path: ${{ secrets.REMOTE_PATH }}
           password: ${{ secrets.SFTP_PASSWORD }}
           # Or use SSH key authentication:
