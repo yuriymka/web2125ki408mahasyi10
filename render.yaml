@@ -17,6 +17,7 @@ services:
         generateValue: true
       - key: VIBER_AUTH_TOKEN
         sync: false
+        # Make sure to set this value in Render dashboard
       - key: RENDER_EXTERNAL_URL
         fromService:
           type: web

@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db');
 const viberService = require('./viber-service');
+const asyncHandler = require('express-async-handler');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -98,40 +99,55 @@ app.get('/setup-2fa', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'setup-2fa.html'), { root: '/' });
 });
 
+// Validate environment variables
+const requiredEnvVars = ['SESSION_SECRET', 'VIBER_AUTH_TOKEN'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+    console.error('Missing required environment variables:', missingEnvVars);
+    process.exit(1);
+}
+
 // Authentication routes
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', asyncHandler(async (req, res) => {
+    const { username, password, phoneNumber } = req.body;
+
+    if (!username || !password || !phoneNumber) {
+        return res.status(400).json({
+            error: 'Missing required fields'
+        });
+    }
+
+    if (!/^\+[0-9]{10,15}$/.test(phoneNumber)) {
+        return res.status(400).json({
+            error: 'Invalid phone number format. Include country code (e.g., +1234567890)'
+        });
+    }
+
     try {
-        const { username, password, phoneNumber } = req.body;
-
-        // Validate phone number format
-        if (!/^\+[0-9]{10,15}$/.test(phoneNumber)) {
-            return res.status(400).json({
-                error: 'Invalid phone number format. Please include country code (e.g., +1234567890)'
-            });
-        }
-
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create user
         await db.createUser(username, hashedPassword, phoneNumber);
 
-        // Send verification code via Viber
+        console.log(`Attempting to send verification code to ${phoneNumber}`);
         const sent = await viberService.sendVerificationCode(phoneNumber);
+        
         if (!sent) {
-            return res.status(500).json({
-                error: 'Failed to send verification code. Please ensure you have Viber installed.'
-            });
+            // Rollback user creation if verification code sending fails
+            await db.deleteUser(username);
+            throw new Error('Failed to send verification code');
         }
 
-        res.json({ success: true });
+        res.json({ 
+            success: true,
+            message: 'Registration successful. Please check Viber for verification code.'
+        });
     } catch (error) {
         console.error('Registration error:', error);
         res.status(500).json({
             error: error.message || 'Registration failed'
         });
     }
-});
+}));
 
 app.post('/api/login', async (req, res) => {
     try {

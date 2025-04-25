@@ -3,10 +3,16 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 
-// Create data directory if it doesn't exist
+// Validate database directory
 const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
+try {
     fs.mkdirSync(dataDir, { recursive: true });
+    // Test write permissions
+    fs.accessSync(dataDir, fs.constants.W_OK);
+    console.log('Database directory is writable:', dataDir);
+} catch (error) {
+    console.error('Error with database directory:', error);
+    process.exit(1);
 }
 
 const dbPath = path.join(dataDir, 'database.sqlite');
