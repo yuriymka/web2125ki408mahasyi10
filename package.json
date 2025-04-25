@@ -4,9 +4,8 @@
     "description": "A business card website with Viber authentication",
     "main": "server.js",
     "scripts": {
-      "clean": "rm -rf node_modules package-lock.json",
       "start": "node server.js",
-      "build": "mkdir -p build && mkdir -p build/data && cp -r public views viber-service.js server.js db.js package.json package-lock.json .npmrc build/",
+      "build": "mkdir -p build && mkdir -p build/data && cp -r public views viber-service.js server.js db.js package.json package-lock.json build/",
       "postinstall": "npm run build"
     },
     "dependencies": {
@@ -16,8 +15,7 @@
       "express-session": "^1.17.3",
       "connect-sqlite3": "^0.9.13",
       "sqlite3": "^5.1.6",
-      "viber-bot": "^1.0.18",
-      "node-fetch": "^2.6.9"
+      "viber-bot": "^1.0.18"
     },
     "engines": {
       "node": ">=14.0.0"
