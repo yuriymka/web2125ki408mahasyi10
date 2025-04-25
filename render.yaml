@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: business-card-website
+    env: node
+    buildCommand: |
+      rm -rf node_modules package-lock.json
+      npm install
+      npm run build
+    startCommand: |
+      mkdir -p /opt/render/project/src/build/data
+      chmod 777 /opt/render/project/src/build/data
+      cd build && NODE_ENV=production node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: VIBER_AUTH_TOKEN
+        sync: false
+        # Make sure to set this value in Render dashboard
+      - key: RENDER_EXTERNAL_URL
+        fromService:
+          type: web
+          name: business-card-website
+          property: host
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/build/data
+      sizeGB: 1
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Credentials
+        value: "true"
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*" 

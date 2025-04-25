@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Card - GET Page</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/">Home</a>
+            <a href="/get-page">GET Page</a>
+            <a href="/post-page">POST Page</a>
+            <a href="/ajax-forms">AJAX Forms</a>
+        </nav>
+        
+        <div class="card">
+            <h2>GET Request Demo</h2>
+            <form action="/get-page" method="get">
+                <input type="text" name="name" placeholder="Enter your name">
+                <button type="submit">Submit GET Request</button>
+            </form>
+            <div class="result">
+                <p>Query Parameters: <span id="params"></span></p>
+                <div class="timestamp">Page loaded at: <span id="loadTime"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loadTime').textContent = new Date().toLocaleString();
+        const urlParams = new URLSearchParams(window.location.search);
+        document.getElementById('params').textContent = urlParams.toString();
+    </script>
+</body>
+</html>

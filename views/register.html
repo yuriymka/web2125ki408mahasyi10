@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Business Card</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .qr-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        .secret-key {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        .verification-form {
+            display: none;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h2>Register</h2>
+            <div id="errorMessage" class="error" style="display: none;"></div>
+            
+            <form id="registerForm">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Password" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="confirmPassword" placeholder="Confirm Password" required>
+                </div>
+                <div class="form-group">
+                    <input type="tel" name="phoneNumber" placeholder="Phone Number (with country code, e.g., +1234567890)" 
+                           pattern="^\+[0-9]{10,15}$" required>
+                    <small>Enter phone number with country code (used for Viber verification)</small>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            
+            <div id="verificationSection" style="display: none;">
+                <h3>Verify Your Phone</h3>
+                <p>We've sent a verification code to your Viber account.</p>
+                <div class="form-group">
+                    <input type="text" id="verificationCode" placeholder="Enter 6-digit code">
+                </div>
+                <button onclick="verifyCode()">Verify</button>
+            </div>
+
+            <p class="login-link">
+                Already have an account? <a href="/login">Login here</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const registerForm = document.getElementById('registerForm');
+        const verificationSection = document.getElementById('verificationSection');
+        const errorMessage = document.getElementById('errorMessage');
+        let currentPhoneNumber = '';
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMessage.style.display = 'none';
+
+            const formData = new FormData(e.target);
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password'),
+                confirmPassword: formData.get('confirmPassword'),
+                phoneNumber: formData.get('phoneNumber')
+            };
+
+            if (data.password !== data.confirmPassword) {
+                errorMessage.textContent = 'Passwords do not match';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentPhoneNumber = data.phoneNumber;
+                    registerForm.style.display = 'none';
+                    verificationSection.style.display = 'block';
+                } else {
+                    errorMessage.textContent = result.error || 'Registration failed';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'An error occurred. Please try again.';
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        async function verifyCode() {
+            const code = document.getElementById('verificationCode').value;
+            
+            try {
+                const response = await fetch('/api/verify-phone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phoneNumber: currentPhoneNumber,
+                        code: code
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = '/login';
+                } else {
+                    errorMessage.textContent = result.error || 'Verification failed';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'An error occurred. Please try again.';
+                errorMessage.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html> 

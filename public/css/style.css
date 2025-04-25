@@ -1,0 +1,177 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+nav {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #333;
+    border-radius: 5px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin-right: 20px;
+}
+
+nav a:hover {
+    color: #ddd;
+}
+
+.card {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.form-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+form {
+    margin-bottom: 15px;
+}
+
+input {
+    padding: 8px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button {
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+.result {
+    margin-top: 20px;
+    padding: 15px;
+    background: #e9ecef;
+    border-radius: 4px;
+}
+
+.result h3 {
+    margin-top: 0;
+    color: #495057;
+}
+
+.timestamp {
+    margin-top: 20px;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+#qrcode {
+    text-align: center;
+    margin: 20px 0;
+}
+
+#qrcode img {
+    max-width: 200px;
+}
+
+.error {
+    background-color: #ffebee;
+    color: #c62828;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #ffcdd2;
+}
+
+.success {
+    color: #28a745;
+    margin-top: 5px;
+    font-size: 0.9em;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.loading {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+pre {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: monospace;
+    margin: 10px 0;
+}
+
+.dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.menu-items a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.menu-item {
+    transition: all 0.3s ease;
+}
+
+.welcome-message {
+    color: #1976d2;
+}
+
+.user-info {
+    color: #333;
+}
+
+.timestamp {
+    margin-top: 30px;
+    text-align: right;
+    color: #666;
+}
